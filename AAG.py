@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     # loop forever
     while(1):
-        maxa_failed = False
+        moxa_failed = False
         outstr = ""
         # hand shake with central hub
         hub.report_in('cloud_watcher')
