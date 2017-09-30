@@ -55,9 +55,12 @@ def SendRecv(ctype, val, buff_size):
         s.write("{}!".format(val))
         z = s.read(size=buff_size)
     else:
-        s.send("{}!".format(val))
-        time.sleep(1)
-        z = s.recv(buff_size)
+        try:
+            s.send("{}!".format(val))
+            time.sleep(1)
+            z = s.recv(buff_size)
+        except socket.error:
+            return None
     return z
 
 def Temp(x):
@@ -161,6 +164,7 @@ if __name__ == "__main__":
 
     # loop forever
     while(1):
+        maxa_failed = False
         outstr = ""
         # hand shake with central hub
         hub.report_in('cloud_watcher')
@@ -169,10 +173,15 @@ if __name__ == "__main__":
             val_tot = []
             for j in range(0, n_meas):
                 z = SendRecv(args.conn, sen_com[i], sen_buf[i])
+                if z is None:
+                    moxa_failed = True
+                    break
                 if len(z) == sen_buf[i]:
                     ngood += 1
                     val = int(z.split('!')[spl[i]][1:])
                     val_tot.append(val)
+            if moxa_failed:
+                break
             # sigma clip
             val_av, clipped, med, std = clip(val_tot, ngood)
             # if a temeprature divide by 100
@@ -186,6 +195,10 @@ if __name__ == "__main__":
             # print the output
             outstr = "{}[{}:{}] {:.2f}\t".format(outstr, ngood,
                                                  clipped, val_av)
+        if moxa_failed:
+            print('Moxa is down, waiting for it to come back')
+            time.sleep(600)
+            continue
         # grab the PWM value once per set
         z = SendRecv(args.conn, "Q", 30)
         valstore['PWM'] = int(z.split('!')[1][1:])
