@@ -12,7 +12,6 @@ D! - Device errors
 """
 import sys
 import time
-import signal
 from contextlib import contextmanager
 import socket
 from datetime import datetime
@@ -79,16 +78,6 @@ def clip(val_tot, ngood):
         val_av = float(np.sum(val_tot))/ngood
     return val_av, clipped, med, std
 
-# set up Ctrl+C handling
-die = False
-def signalHandler():
-    """
-    die cleanly
-    """
-    global die
-    print("Ctrl+C caught, exiting...")
-    die = True
-
 @contextmanager
 def openPort():
     """
@@ -108,7 +97,6 @@ def openPort():
         s.close()
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signalHandler)
     host = socket.gethostname()
     # set up the sensors
     sen_name = ['ambTemp', 'rainFreq', 'irSkyTemp', 'LDR', 'rainSensTemp']
@@ -197,8 +185,3 @@ if __name__ == "__main__":
                     cur.execute(qry)
             except:
                 print('Database connection error, skipping...')
-            # close up
-            if die:
-                port.close()
-                print("Socket closed")
-                sys.exit(1)
