@@ -10,7 +10,6 @@ C! - LDR voltage + Rain sensor temp (!4=1022 = dark,
                                      !4=11 = bright)
 D! - Device errors
 """
-import sys
 import time
 from contextlib import contextmanager
 import socket
@@ -96,17 +95,10 @@ def openPort():
     finally:
         s.close()
 
-def logResults(host, valstore, errors):
+def logResults(host, tsample, bucket, valstore, errors):
     """
     Log the output to the database
     """
-    t = datetime.utcnow()
-    t2 = Time(t, scale='utc')
-    outstr = "{:.6f}\t{}".format(t2.jd, outstr)
-    print(outstr)
-    # log to the database
-    bucket = (int(time.time())/60)*60
-    tsample = datetime.utcnow().isoformat().replace('T', ' ')
     qry = """
         REPLACE INTO cloudwatcher
         (tsample, bucket, ambient_temp, rain_freq,
@@ -190,4 +182,10 @@ if __name__ == "__main__":
                                                errors['E2'],
                                                errors['E3'],
                                                errors['E4'])
-            logResults(host, valstore, errors)
+            t2 = Time(datetime.utcnow(), scale='utc')
+            outstr = "{:.6f}\t{}".format(t2.jd, outstr)
+            print(outstr)
+            # log to the database
+            bucket = (int(time.time())/60)*60
+            tsample = datetime.utcnow().isoformat().replace('T', ' ')
+            logResults(host, tsample, bucket, valstore, errors)
