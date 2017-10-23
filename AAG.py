@@ -96,6 +96,36 @@ def openPort():
     finally:
         s.close()
 
+def logResults(host, valstore, errors):
+    """
+    Log the output to the database
+    """
+    t = datetime.utcnow()
+    t2 = Time(t, scale='utc')
+    outstr = "{:.6f}\t{}".format(t2.jd, outstr)
+    print(outstr)
+    # log to the database
+    bucket = (int(time.time())/60)*60
+    tsample = datetime.utcnow().isoformat().replace('T', ' ')
+    qry = """
+        REPLACE INTO cloudwatcher
+        (tsample, bucket, ambient_temp, rain_freq,
+        sky_temp_c, ldr, rain_sens_temp, pwm, e1,
+        e2, e3, e4, host)
+        VALUES
+        ("{}", {}, {:.2f}, {}, {:.2f}, {}, {:.2f},
+        {}, {}, {}, {}, {}, "{}")
+        """.format(tsample, bucket, valstore['ambTemp'],
+                   valstore['rainFreq'], valstore['irSkyTemp'],
+                   valstore['LDR'], valstore['rainSensTemp'],
+                   valstore['PWM'], errors['E1'], errors['E2'],
+                   errors['E3'], errors['E4'], host)
+    try:
+        with pymysql.connect(host='ds', db='ngts_ops') as cur:
+            cur.execute(qry)
+    except:
+        print('Database connection error, skipping...')
+
 if __name__ == "__main__":
     host = socket.gethostname()
     # set up the sensors
@@ -160,28 +190,4 @@ if __name__ == "__main__":
                                                errors['E2'],
                                                errors['E3'],
                                                errors['E4'])
-            t = datetime.utcnow()
-            t2 = Time(t, scale='utc')
-            outstr = "{:.6f}\t{}".format(t2.jd, outstr)
-            print(outstr)
-            # log to the database
-            bucket = (int(time.time())/60)*60
-            tsample = datetime.utcnow().isoformat().replace('T', ' ')
-            qry = """
-                REPLACE INTO cloudwatcher
-                (tsample, bucket, ambient_temp, rain_freq,
-                sky_temp_c, ldr, rain_sens_temp, pwm, e1,
-                e2, e3, e4, host)
-                VALUES
-                ("{}", {}, {:.2f}, {}, {:.2f}, {}, {:.2f},
-                {}, {}, {}, {}, {}, "{}")
-                """.format(tsample, bucket, valstore['ambTemp'],
-                           valstore['rainFreq'], valstore['irSkyTemp'],
-                           valstore['LDR'], valstore['rainSensTemp'],
-                           valstore['PWM'], errors['E1'], errors['E2'],
-                           errors['E3'], errors['E4'], host)
-            try:
-                with pymysql.connect(host='ds', db='ngts_ops') as cur:
-                    cur.execute(qry)
-            except:
-                print('Database connection error, skipping...')
+            logResults(host, valstore, errors)
