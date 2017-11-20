@@ -167,7 +167,10 @@ if __name__ == "__main__":
                                                      clipped, val_av)
             # grab the PWM value once per set
             z = sendRecv(port, "Q", 30)
-            valstore['PWM'] = int(z.split('!')[1][1:])
+            try:
+                valstore['PWM'] = int(z.split('!')[1][1:])
+            except AttributeError:
+                valstore['PWM'] = 0
             outstr = "{}\t{}\t".format(outstr, valstore['PWM'])
             # grab the errors once per set
             z = sendRecv(port, "D", 75)
