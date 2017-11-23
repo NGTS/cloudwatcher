@@ -174,11 +174,17 @@ if __name__ == "__main__":
             outstr = "{}\t{}\t".format(outstr, valstore['PWM'])
             # grab the errors once per set
             z = sendRecv(port, "D", 75)
-            e_list = z.split('!')
-            errors['E1'] = int(e_list[1][2:])
-            errors['E2'] = int(e_list[2][2:])
-            errors['E3'] = int(e_list[3][2:])
-            errors['E4'] = int(e_list[4][2:])
+            try:
+                e_list = z.split('!')
+                errors['E1'] = int(e_list[1][2:])
+                errors['E2'] = int(e_list[2][2:])
+                errors['E3'] = int(e_list[3][2:])
+                errors['E4'] = int(e_list[4][2:])
+            except AttributeError:
+                errors['E1'] = 0
+                errors['E2'] = 0
+                errors['E3'] = 0
+                errors['E4'] = 0
             # print the output
             outstr = "{}{}\t{}\t{}\t{}".format(outstr,
                                                errors['E1'],
