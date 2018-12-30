@@ -135,66 +135,70 @@ if __name__ == "__main__":
     n_meas = 5
     # loop forever
     while(1):
-        with openPort() as port:
-            outstr = ""
-            # hand shake with central hub
-            hub.report_in('cloud_watcher')
-            for i in range(0, len(sen_name)):
-                ngood = 0
-                val_tot = []
-                for j in range(0, n_meas):
-                    z = sendRecv(port, sen_com[i], sen_buf[i])
+        try:
+            with openPort() as port:
+                outstr = ""
+                # hand shake with central hub
+                hub.report_in('cloud_watcher')
+                for i in range(0, len(sen_name)):
+                    ngood = 0
+                    val_tot = []
+                    for j in range(0, n_meas):
+                        z = sendRecv(port, sen_com[i], sen_buf[i])
+                        if z is None:
+                            break
+                        if len(z) == sen_buf[i]:
+                            ngood += 1
+                            val = int(z.split('!')[spl[i]][1:])
+                            val_tot.append(val)
                     if z is None:
                         break
-                    if len(z) == sen_buf[i]:
-                        ngood += 1
-                        val = int(z.split('!')[spl[i]][1:])
-                        val_tot.append(val)
-                if z is None:
-                    break
-                # sigma clip
-                val_av, clipped, med, std = clip(val_tot, ngood)
-                # if a temeprature divide by 100
-                if "Temp" in sen_name[i]:
-                    val_av = temp(val_av)
-                # correct the sky temp for the ambient temp
-                if sen_name[i] == 'irSkyTemp':
-                    val_av = corrSkyT(valstore['ambTemp'], val_av)
-                # store the current values
-                valstore[sen_name[i]] = val_av
+                    # sigma clip
+                    val_av, clipped, med, std = clip(val_tot, ngood)
+                    # if a temeprature divide by 100
+                    if "Temp" in sen_name[i]:
+                        val_av = temp(val_av)
+                    # correct the sky temp for the ambient temp
+                    if sen_name[i] == 'irSkyTemp':
+                        val_av = corrSkyT(valstore['ambTemp'], val_av)
+                    # store the current values
+                    valstore[sen_name[i]] = val_av
+                    # print the output
+                    outstr = "{}[{}:{}] {:.2f}\t".format(outstr, ngood,
+                                                         clipped, val_av)
+                # grab the PWM value once per set
+                z = sendRecv(port, "Q", 30)
+                try:
+                    valstore['PWM'] = int(z.split('!')[1][1:])
+                except AttributeError:
+                    valstore['PWM'] = 0
+                outstr = "{}\t{}\t".format(outstr, valstore['PWM'])
+                # grab the errors once per set
+                z = sendRecv(port, "D", 75)
+                try:
+                    e_list = z.split('!')
+                    errors['E1'] = int(e_list[1][2:])
+                    errors['E2'] = int(e_list[2][2:])
+                    errors['E3'] = int(e_list[3][2:])
+                    errors['E4'] = int(e_list[4][2:])
+                except AttributeError:
+                    errors['E1'] = 0
+                    errors['E2'] = 0
+                    errors['E3'] = 0
+                    errors['E4'] = 0
                 # print the output
-                outstr = "{}[{}:{}] {:.2f}\t".format(outstr, ngood,
-                                                     clipped, val_av)
-            # grab the PWM value once per set
-            z = sendRecv(port, "Q", 30)
-            try:
-                valstore['PWM'] = int(z.split('!')[1][1:])
-            except AttributeError:
-                valstore['PWM'] = 0
-            outstr = "{}\t{}\t".format(outstr, valstore['PWM'])
-            # grab the errors once per set
-            z = sendRecv(port, "D", 75)
-            try:
-                e_list = z.split('!')
-                errors['E1'] = int(e_list[1][2:])
-                errors['E2'] = int(e_list[2][2:])
-                errors['E3'] = int(e_list[3][2:])
-                errors['E4'] = int(e_list[4][2:])
-            except AttributeError:
-                errors['E1'] = 0
-                errors['E2'] = 0
-                errors['E3'] = 0
-                errors['E4'] = 0
-            # print the output
-            outstr = "{}{}\t{}\t{}\t{}".format(outstr,
-                                               errors['E1'],
-                                               errors['E2'],
-                                               errors['E3'],
-                                               errors['E4'])
-            t2 = Time(datetime.utcnow(), scale='utc')
-            outstr = "{:.6f}\t{}".format(t2.jd, outstr)
-            print(outstr)
-            # log to the database
-            bucket = (int(time.time())/60)*60
-            tsample = datetime.utcnow().isoformat().replace('T', ' ')
-            logResults(host, tsample, bucket, valstore, errors)
+                outstr = "{}{}\t{}\t{}\t{}".format(outstr,
+                                                   errors['E1'],
+                                                   errors['E2'],
+                                                   errors['E3'],
+                                                   errors['E4'])
+                t2 = Time(datetime.utcnow(), scale='utc')
+                outstr = "{:.6f}\t{}".format(t2.jd, outstr)
+                print(outstr)
+                # log to the database
+                bucket = (int(time.time())/60)*60
+                tsample = datetime.utcnow().isoformat().replace('T', ' ')
+                logResults(host, tsample, bucket, valstore, errors)
+        except RuntimeError:
+            time.sleep(10)
+            continue
