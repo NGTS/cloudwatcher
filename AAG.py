@@ -199,6 +199,7 @@ if __name__ == "__main__":
                 bucket = (int(time.time())/60)*60
                 tsample = datetime.utcnow().isoformat().replace('T', ' ')
                 logResults(host, tsample, bucket, valstore, errors)
+                time.sleep(60)
         except RuntimeError:
             time.sleep(10)
             continue
