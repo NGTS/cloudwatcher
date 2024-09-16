@@ -342,7 +342,7 @@ def save_to_db(host, sensor_values, device_errors, pwm, debug = False):
 
 
 def get_input_args():
-    paser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('n', 'nsamples', help="Number of measurements to take", type = int, default = 5)
     parser.add_argument('v', 'verbose', help="Print extra information", action='store_true')
     parser.add_argument('debug', help="Debug mode. No info is saved to the database", action='store_true')
