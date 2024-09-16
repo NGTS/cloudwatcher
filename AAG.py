@@ -265,7 +265,7 @@ DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
 
 class tcp_open_port:
     
-    def __enter__(self, ip, port_num):
+    def __init__(self, ip, port_num):
         self.ip = ip
         self.port_num = port_num
         
@@ -279,6 +279,9 @@ class tcp_open_port:
         except socket.error:
             print('[ERROR] Cannot open port at {}:{}'.format(self.ip, self.port_num))
             exit()
+
+    def __enter__(self):
+        return self.socket
         
     def __exit__(self):
         self.socket.close()
