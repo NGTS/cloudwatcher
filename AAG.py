@@ -253,9 +253,9 @@ SENSOR_DATA = {
 
 DEVICE_DATA = {
     'pwm'             : {'cmd':'Q', 'bufsize':30},
-    'device_name'     : {'cmd':'A', 'bufsize':0},
-    'firmware_version': {'cmd':'B', 'bufsize':0},
-    'serial_number'   : {'cmd':'K', 'bufsize':0},
+    'device_name'     : {'cmd':'A', 'bufsize':30},
+    'firmware_version': {'cmd':'B', 'bufsize':30},
+    'serial_number'   : {'cmd':'K', 'bufsize':30},
     'device_errors'   : {'cmd':'D', 'bufsize':75}
 }
 
@@ -429,7 +429,15 @@ def cloudwatcher():
             
         if args.verbose:
             print_device_info(port)
+
+        for field_name, field_data in DEVICE_DATA.items():
+            print(field_name + "...")
+            tcp_send(port, field_data['cmd'], field_data['bufsize'])
         
+        for sensor_name, sensor_data in SENSOR_DATA.items():
+            print(sensor_name + " ...")
+            tcp_send(port, sensor_data['cmd'], sensor_data['bufsize'])
+
         exit()
 
         while(1):
