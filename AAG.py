@@ -371,7 +371,7 @@ def sigma_clip_samples(samples):
     pass
 
 def fetch_device_errors(port):
-    result = tcp_send(port, DEVICE_DATA['cmd'], DEVICE_DATA['bufsize']):
+    result = tcp_send(port, DEVICE_DATA['cmd'], DEVICE_DATA['bufsize'])
     errors = {"E"+str(i+1) : v[2:] for i,v in enumerate(result.split('!')) }
     return errors
 
