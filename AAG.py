@@ -262,21 +262,43 @@ DEVICE_DATA = {
 DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
 
 
-@contextmanager
-def tcp_open_port():
-    """
-    Open a TCP IP port as a context manager
-    """
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((TCP_IP, TCP_PORT))
-        s.settimeout(1)
-        s.setblocking(False)
-        yield s
-    except socket.error:
-        print('Cannot open port at {}:{}'.format(TCP_IP, TCP_PORT))
-    finally:
-        s.close()
+
+class tcp_open_port:
+    
+    def __enter__(self, ip, port_num):
+        self.ip = ip
+        self.port_num = port_num
+        
+        try:
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect((self.ip, self.port_num))
+            self.socket.settimeout(1)
+            self.socket.setblocking(False)
+            return self.socket
+        
+        except socket.error:
+            print('[ERROR] Cannot open port at {}:{}'.format(self.ip, self.port_num))
+            exit()
+        
+    def __exit__(self):
+        self.socket.close()
+    
+
+# @contextmanager
+# def tcp_open_port():
+#     """
+#     Open a TCP IP port as a context manager
+#     """
+#     try:
+#         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#         s.connect((TCP_IP, TCP_PORT))
+#         s.settimeout(1)
+#         s.setblocking(False)
+#         yield s
+#     except socket.error:
+#         print('Cannot open port at {}:{}'.format(TCP_IP, TCP_PORT))
+#     finally:
+#         s.close()
 
 
 def tcp_send(port, cmd, buff_size, verbose = False):
@@ -393,7 +415,7 @@ def cloudwatcher():
     if args.verbose:
         print("[INFO] Connected to central hub")
 
-    with tcp_open_port as port:
+    with tcp_open_port(TCP_IP, TCP_PORT) as port:
             
         if args.verbose:
             print_device_info(port)
