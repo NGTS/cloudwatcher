@@ -252,9 +252,9 @@ SENSOR_DATA = {
 
 DEVICE_DATA = {
     'pwm'             : {'cmd':'Q', 'bufsize':30},
-    'device_name'     : {'cmd':'A', 'bufsize':...},
-    'firmware_version': {'cmd':'B', 'bufsize':...},
-    'serial_number'   : {'cmd':'K', 'bufsize':...},
+    'device_name'     : {'cmd':'A', 'bufsize':0},
+    'firmware_version': {'cmd':'B', 'bufsize':0},
+    'serial_number'   : {'cmd':'K', 'bufsize':0},
     'device_errors'   : {'cmd':'D', 'bufsize':75}
 }
 
@@ -349,9 +349,9 @@ def get_input_args():
 
 
 def print_device_info(port):
-    device_name   = tcp_send(port, 'A', ...)
-    firmware_version    = tcp_send(port, 'B', ...)
-    serial_num = tcp_send(port, 'K', ...)
+    device_name   = tcp_send(port, 'A', 30)
+    firmware_version    = tcp_send(port, 'B', 30)
+    serial_num = tcp_send(port, 'K', 30)
 
     if device_name is None:
         print("[ERROR] Failed to connect to cloudwatcher!")
@@ -396,6 +396,8 @@ def cloudwatcher():
             
         if args.verbose:
             print_device_info(port)
+        
+        exit()
 
         while(1):
 
