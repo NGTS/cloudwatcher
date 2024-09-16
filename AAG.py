@@ -306,7 +306,7 @@ class tcp_open_port:
 #         s.close()
 
 
-def tcp_send(port, cmd, buff_size, verbose = False):
+def tcp_send(port, cmd, bufsize, verbose = False):
     """
     Sends command to device via TCP IP port, and returns the response.
     """
@@ -315,14 +315,15 @@ def tcp_send(port, cmd, buff_size, verbose = False):
             print("[INFO] TCP sending command: {}!".format(cmd))
         port.send(cmd + '!')
         time.sleep(1) # Is this necessary?
-        response = port.recv(buff_size)
+        response = port.recv(bufsize)
         if verbose:
             print("[INFO] TCP received response: {}".format(response))
-        if len(respone) == buff_size:
+        if len(response) == bufsize:
             return response
+        print("[WARN] Response size does not match expected size ({} != {})".format(len(response), bufsize))
         return None
     except socket.error:
-        print("[ERROR] Failed to send TCP message")
+        print("[WARN] Failed to send TCP message")
         return None
 
 
