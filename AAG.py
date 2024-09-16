@@ -274,7 +274,6 @@ class tcp_open_port:
             self.socket.connect((self.ip, self.port_num))
             self.socket.settimeout(1)
             self.socket.setblocking(False)
-            return self.socket
         
         except socket.error:
             print('[ERROR] Cannot open port at {}:{}'.format(self.ip, self.port_num))
