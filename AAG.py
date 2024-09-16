@@ -264,6 +264,9 @@ DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
 
 
 class tcp_open_port:
+    """
+    Context manager for opening and closing TCP ports
+    """
     
     def __init__(self, ip, port_num):
         self.ip = ip
@@ -282,7 +285,7 @@ class tcp_open_port:
     def __enter__(self):
         return self.socket
         
-    def __exit__(self):
+    def __exit__(self, dtype, value, traceback):
         self.socket.close()
     
 
@@ -313,7 +316,8 @@ def tcp_send(port, cmd, buff_size, verbose = False):
         port.send(cmd + '!')
         time.sleep(1) # Is this necessary?
         response = port.recv(buff_size)
-        print("[INFO] TCP received response: {}".format(response))
+        if verbose:
+            print("[INFO] TCP received response: {}".format(response))
         if len(respone) == buff_size:
             return response
         return None
@@ -362,7 +366,7 @@ def save_to_db(host, sensor_values, device_errors, pwm, debug = False):
         with pymysql.connect(host='ds', db='ngts_ops') as cur:
             cur.execute(qry)
     except:
-        print('[WARNING] Database connection error, skipping...')
+        print('[WARN] Database connection error, skipping...')
 
 
 def get_input_args():
@@ -406,6 +410,9 @@ def cloudwatcher():
     if args.nsamples <= MIN_SAMPLES:
         print("[ERROR] Number of samples must be greater than {}".format(MIN_SAMPLES))
     
+    if args.debug:
+        args.verbose = True
+
     # Initialise dict of sensor values
     sensor_values = {k:0 for k in SENSOR_DATA.keys()}
 
