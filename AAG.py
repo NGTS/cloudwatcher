@@ -18,6 +18,7 @@ from astropy.time import Time
 import numpy as np
 import pymysql
 import Pyro4
+import argparse
 
 # pylint: disable=invalid-name
 # pylint: disable=superfluous-parens
