@@ -1,3 +1,6 @@
 
-2024-09-16 Jorge Fernandez
+v1.0 - James McCormac / David Anderson
+
+v1.1 - 2024-09-16 - Jorge Fernandez
 - Added Readme and Changelog
+- Fixed bug where sigma clipping removes all measurements
