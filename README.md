@@ -13,8 +13,8 @@ The manual of the device and further information (including the serial protocol 
 1. Login into par-ds
 2. Connect to the ocs-01 machine with `ssh ops@ngts-par-ocs-01`
 3. List the screen sessions with `screen -ls`
-4. Connect to the `cloudwatcher` screen session with `screen -xr cloudwatcher`. If it doesn't exist, create and join it with `screen -S cloudwatcher`
-5. If the code is already running, stop it with `Ctrl-C` followed by `Ctrl-D` to exit the Python interpreter.
-6. Navigate to `/home/ops/dev/cloudwatcher`
+4. Connect to the `cloudwatcher` screen session with `screen -xr cloudwatcher`.
+    1. If the screen doesn't exist, create and join it with `screen -S cloudwatcher` and inside navigate to `/home/ops/dev/cloudwatcher`.
+    2. If the code was already running inside the screen, stop it with `Ctrl-C` followed by `Ctrl-D` to exit the Python interpreter.
 7. (Re-)run the cloudwatcher code with `/usr/local/python/bin/python -i AAG.py`
 8. Detach from the screen session by typing `Ctrl-A` followed by `D`
