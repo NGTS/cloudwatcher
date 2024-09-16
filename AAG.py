@@ -72,7 +72,10 @@ def clip(val_tot, ngood):
                 val_tot_c += k
             else:
                 clipped += 1
-        val_av = float(val_tot_c)/(ngood-clipped)
+        if ngood == clipped:
+            val_av = float(np.sum(val_tot))/ngood
+        else:
+            val_av = float(val_tot_c)/(ngood-clipped)
     else:
         val_av = float(np.sum(val_tot))/ngood
     return val_av, clipped, med, std
