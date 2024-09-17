@@ -555,7 +555,7 @@ def cloudwatcher():
             # TODO
             
             # Fetch power m... cycle
-            pwm = port.send(DEVICE_DATA['pwm'])
+            pwm = port.send(DEVICE_DATA['pwm']['cmd'], verbose = args.verbose)
             pwm = int(pwm['Q'])
             pwm = get_pwm_percent(pwm)
             if verbose:
