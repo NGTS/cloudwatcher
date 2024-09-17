@@ -443,6 +443,10 @@ def fetch_samples(port, nsamples):
         cmd_samples[cmd] = results
 
     sensor_samples = {name: cmd_samples[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
+    
+    # Convert dtypes to int
+    sensor_samples = {k: [int(v) for v in samples] for k,samples in sensor_samples.items()}
+    
     return sensor_samples
     
 
