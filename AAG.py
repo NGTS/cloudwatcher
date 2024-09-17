@@ -439,15 +439,9 @@ def cloudwatcher():
         if args.verbose:
             print_device_info(port)
 
-        for field_name, field_data in DEVICE_DATA.items():
-            print(field_name + ": ", )
-            resp = port.send(field_data['cmd'], verbose = args.verbose)
-            print(resp)
-
-        for sensor_name, sensor_data in SENSOR_DATA.items():
-            print(sensor_name + " ...")
-            resp = port.send(sensor_data['cmd'], verbose = args.verbose)
-            print(resp)
+        for cmd in COMMAND_DATA:
+            resp = port.send(cmd)
+            pritn(resp)
 
         exit()
 
