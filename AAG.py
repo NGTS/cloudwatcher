@@ -334,8 +334,8 @@ class tcp_port:
             data = {}
 
             for block in blocks:
-                key = block[:2].strip()
-                value = block[2:].strip()
+                key = block[:2].replace(' ','')
+                value = block[2:].replace(' ','')
 
                 # Ignore empty or handshaking block
                 if key == '' or key == '\x11':
@@ -344,8 +344,9 @@ class tcp_port:
                 # Special case of requesting serial number
                 if block[0] == 'K':
                     key = 'K'
-                    value = block[1:].strip()
+                    value = block[1:].replace(' ','')
 
+                value = value.replace('\x00', '')
                 data[key] = value
             
             return data
