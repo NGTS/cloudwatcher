@@ -354,7 +354,7 @@ class tcp_port:
                 return None
 
             # Extract blocks from message
-            data = self._extract_blocks(respone)
+            data = self._extract_blocks(response)
             return data
 
         except socket.error:
