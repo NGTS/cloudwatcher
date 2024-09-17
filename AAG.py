@@ -236,45 +236,49 @@ def main():
 TCP_IP = '10.2.5.93'
 TCP_PORT = 4004
 
+# Number of seconds to wait for TCP response
+TCP_AWAIT_SECONDS = 1
+
 # Minimum number of measurements to take from each sensor
 MIN_SAMPLES = 5
+
+
 
 # Valid commands for the cloudwatcher.
 #   bufsize: expected length in bytes of the response
 #   nblocks: number of blocks in the response (each block is separated by a '!' character)
 COMMAND_DATA = {
-    'A' : {'bufsize':30, 'nblocks':3}, # Internal name
-    'B' : {'bufsize':30, 'nblocks':3}, # Firmware version
-    'C' : {'bufsize':60, 'nblocks':5}, # Sensor values
-    'D' : {'bufsize':75, 'nblocks':6}, # Internal errors
-    'E' : {'bufsize':30, 'nblocks':3}, # Rain frequency
-    'F' : {'bufsize':30, 'nblocks':3}, # Switch status
-    'Q' : {'bufsize':30, 'nblocks':3}, # Get PWM value
-    'S' : {'bufsize':30, 'nblocks':3}, # Get sky IR temperature
-    'T' : {'bufsize':30, 'nblocks':3}, # Get sensor temperature
-    'K' : {'bufsize':30, 'nblocks':3}, # Serial number
+    'A' : {'bufsize':30 }, # Internal name
+    'B' : {'bufsize':30 }, # Firmware version
+    'C' : {'bufsize':60 }, # Sensor values
+    'D' : {'bufsize':75 }, # Internal errors
+    'E' : {'bufsize':30 }, # Rain frequency
+    'F' : {'bufsize':30 }, # Switch status
+    'Q' : {'bufsize':30 }, # Get PWM value
+    'S' : {'bufsize':30 }, # Get sky IR temperature
+    'T' : {'bufsize':30 }, # Get sensor temperature
+    'K' : {'bufsize':30 }, # Serial number
 }
 
 # Info to fetch sensor data
 #   cmd: command to send to device
 #   idx: index (block) in the returned sensor data where measurement is located
 SENSOR_DATA = {
-    'ambient_temp'   : {'cmd':'T', 'idx':1},
-    'rain_freq'      : {'cmd':'E', 'idx':1},
-    'sky_temp_c'     : {'cmd':'S', 'idx':1},
-    'ldr'            : {'cmd':'C', 'idx':2},
-    'rain_sens_temp' : {'cmd':'C', 'idx':3},
+    'ambient_temp'   : {'cmd':'T', 'block':1},
+    'rain_freq'      : {'cmd':'E', 'block':1},
+    'sky_temp_c'     : {'cmd':'S', 'block':1},
+    'ldr'            : {'cmd':'C', 'block':2},
+    'rain_sens_temp' : {'cmd':'C', 'block':3},
 }
 
 DEVICE_DATA = {
-    'pwm'             : {'cmd':'Q', 'idx':1},
-    'device_name'     : {'cmd':'A', 'idx':1},
-    'firmware_version': {'cmd':'B', 'idx':1},
-    'serial_number'   : {'cmd':'K', 'idx':1},
-    'device_errors'   : {'cmd':'D', 'idx':1}
+    'pwm'             : {'cmd':'Q', 'block':1},
+    'device_name'     : {'cmd':'A', 'block':'N'},
+    'firmware_version': {'cmd':'B', 'block':'V'},
+    'serial_number'   : {'cmd':'K', 'block':1},
 }
 
-DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
+DEVICE_ERRORS = {'E1':, 'E2':0, 'E3':0, 'E4':0}
 
 
 
@@ -315,21 +319,34 @@ class tcp_port:
         
         try:
             self.socket.send(cmd + '!')
-            time.sleep(1) # Is this necessary?
+            time.sleep(TCP_AWAIT_SECONDS) # Is this necessary?
             response = self.socket.recv(bufsize)
 
             if verbose:
                 print("[INFO] TCP received response: {}".format(response))
+            
             if len(response) != bufsize:
                 print("[WARN] Incorrect number of bytes received (expected {}, got {})".format(bufsize, len(response)))
                 return None
 
-            # Extract blocks
+            # Extract blocks from message
             blocks = response.split('!')
-            data = { block[:2].strip() : block[2:].strip() for block in blocks }
-            if len(blocks) != nblocks:
-                print("[WARN] Incorrect number of blocks received (expected {}, got {})".format(nblocks, len(blocks)))
-                return None
+            data = {}
+
+            for block in blocks:
+                key = block[:2].strip()
+                value = block[2:].strip()
+
+                # Special case of requesting serial number
+                if block[0] == 'K':
+                    key = 'K'
+                    value = block[1:].strip()
+
+                # Ignore empty or handshaking block
+                if key == '' or key == '\x11':
+                    continue
+                data[key] = value
+            
             return data
         
         except socket.error:
