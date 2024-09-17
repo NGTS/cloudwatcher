@@ -242,6 +242,9 @@ TCP_AWAIT_SECONDS = 1
 # Minimum number of measurements to take from each sensor
 MIN_SAMPLES = 5
 
+# Minimum number of measurements after sigma clipping
+MIN_CLIPPED_SAMPLES = 1
+
 # Valid character commands for the cloudwatcher
 #   bufsize: expected length in bytes of the response
 COMMAND_DATA = {
@@ -455,10 +458,12 @@ def sigma_clip_samples(samples):
     Remove samples below/above one standard deviation
     """
     mean = np.mean(samples)
-    std = np.std_dev(samples)
+    std = np.std(samples)
     good_idx = (samples <= (mean+std)) & (samples >= (mean-std))
-    print("good idx = ", good_idx)
-    return samples[good_idx]
+    if sum(good_idx) < MIN_CLIPPED_SAMPLES:
+        print("[WARN] Sigma clipping removes all samples.")
+        return np.array(samples)
+    return np.array(samples)[good_idx]
     
 
 def fetch_device_errors(port):
@@ -544,7 +549,7 @@ def cloudwatcher():
                 sensor_values[name] = np.mean(clipped_samples)
             
             if args.verbose:
-                print(sensor_values)
+                print("[INFO] FInal values: ", sensor_values)
 
             # Apply specific adjustments to quantities
             # TODO
