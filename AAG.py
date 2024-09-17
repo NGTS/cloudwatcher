@@ -232,7 +232,7 @@ def main():
 ##########################################
 ##########################################
 
-# IP address of Moxa where cloudwatcher is connected
+# IP address of Moxa where cloudwatcher is connected, and port to access it
 TCP_IP = '10.2.5.93'
 TCP_PORT = 4004
 
@@ -242,15 +242,12 @@ TCP_AWAIT_SECONDS = 1
 # Minimum number of measurements to take from each sensor
 MIN_SAMPLES = 5
 
-
-
-# Valid commands for the cloudwatcher.
+# Valid character commands for the cloudwatcher
 #   bufsize: expected length in bytes of the response
-#   nblocks: number of blocks in the response (each block is separated by a '!' character)
 COMMAND_DATA = {
     'A' : {'bufsize':30 }, # Internal name
     'B' : {'bufsize':30 }, # Firmware version
-    'C' : {'bufsize':60 }, # Sensor values
+    'C' : {'bufsize':90 }, # Sensor values
     'D' : {'bufsize':75 }, # Internal errors
     'E' : {'bufsize':30 }, # Rain frequency
     'F' : {'bufsize':30 }, # Switch status
@@ -262,24 +259,25 @@ COMMAND_DATA = {
 
 # Info to fetch sensor data
 #   cmd: command to send to device
-#   idx: index (block) in the returned sensor data where measurement is located
+#   block: name of the block where desired data is stored
 SENSOR_DATA = {
-    'ambient_temp'   : {'cmd':'T', 'block':1},
-    'rain_freq'      : {'cmd':'E', 'block':1},
-    'sky_temp_c'     : {'cmd':'S', 'block':1},
-    'ldr'            : {'cmd':'C', 'block':2},
-    'rain_sens_temp' : {'cmd':'C', 'block':3},
+    'ambient_temp'   : {'cmd':'T', 'block':'2'},
+    'rain_freq'      : {'cmd':'E', 'block':'R'},
+    'sky_temp_c'     : {'cmd':'S', 'block':'1'},
+    'ldr'            : {'cmd':'C', 'block':'8'}, # New accurate light sensor for firmware > 5.89
+    'rain_sens_temp' : {'cmd':'C', 'block':'5'},
 }
 
+# Info to fetch device data
 DEVICE_DATA = {
-    'pwm'             : {'cmd':'Q', 'block':1},
     'device_name'     : {'cmd':'A', 'block':'N'},
     'firmware_version': {'cmd':'B', 'block':'V'},
-    'serial_number'   : {'cmd':'K', 'block':1},
+    'serial_number'   : {'cmd':'K', 'block':'K'},
+    'pwm'             : {'cmd':'Q', 'block':'Q'},
 }
 
-DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
-
+# Block names for device errors
+DEVICE_ERRORS = ['E1', 'E2', 'E3', 'E4']
 
 
 class tcp_port:
@@ -310,7 +308,7 @@ class tcp_port:
     def send(self, cmd, verbose = False):
         """
         Sends command to device via TCP IP port, and returns the response.
-        The returned response consist on a list of "blocks".
+        The returned response consist on a dict with the block IDs and their values.
         """
         bufsize = COMMAND_DATA[cmd]['bufsize']
 
@@ -423,15 +421,50 @@ def print_device_info(port):
 
 
 def fetch_measurements(port, sensor_data, nsamples):
-    results = [ tcp_send(port, sensor_data['cmd'], sensor_data['bufsize']) for i in nsamples ]
+    results = [ port.send(sensor_data['cmd']) for i in nsamples ]
+
 
 def sigma_clip_samples(samples):
-    pass
+    """
+    Remove samples below/above one standard deviation
+    """
+    mean = np.mean(samples)
+    std = np.std_dev(samples)
+    good_idx = (samples <= (mean+std)) & (samples >= (mean-std))
+    return samples[good_idx]
+    
 
 def fetch_device_errors(port):
-    result = tcp_send(port, DEVICE_DATA['cmd'], DEVICE_DATA['bufsize'])
-    errors = {"E"+str(i+1) : v[2:] for i,v in enumerate(result.split('!')) }
+    resp = port.send(port, 'D')
+    errors = { k: int(v) for k,v in resp.items() }
     return errors
+
+
+def get_light_sensor_mpsas(period, temp):
+    sqreference = 19.6
+    mpsas = sqreference - 2.5 * np.log10(250000/period)
+    mpsas_corr = (mpsas - 0.042) + (0.00212 * temp)
+    return mpsas_corr
+
+def get_ir_temp(temp):
+    return temp/100
+
+def get_ir_sensor_temp(temp):
+    return temp/100
+
+def get_pwm_percent(pwm):
+    return 100 * pwm / 1023
+
+def get_ambient_temp(temp):
+    if temp > 1022: temp = 1022
+    elif temp < 1:  temp = 1
+    
+    # Resistance in K * Ohm
+    r = amb_pull_up_resistance / ( (1023/temp) - 1 )
+    r = np.log(r / amb_res_at_25)
+    temp_amb = 1 / (r / amb_beta + 1 / (abs_zero+25) ) - abs_zero
+    return None
+
 
 def cloudwatcher():
     
