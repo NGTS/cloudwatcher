@@ -440,8 +440,8 @@ def cloudwatcher():
             print_device_info(port)
 
         for cmd in COMMAND_DATA:
-            resp = port.send(cmd)
-            pritn(resp)
+            resp = port.send(cmd, verbose = args.verbose)
+            print(resp)
 
         exit()
 
