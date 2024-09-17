@@ -337,14 +337,15 @@ class tcp_port:
                 key = block[:2].strip()
                 value = block[2:].strip()
 
+                # Ignore empty or handshaking block
+                if key == '' or key == '\x11':
+                    continue
+
                 # Special case of requesting serial number
                 if block[0] == 'K':
                     key = 'K'
                     value = block[1:].strip()
 
-                # Ignore empty or handshaking block
-                if key == '' or key == '\x11':
-                    continue
                 data[key] = value
             
             return data
