@@ -243,16 +243,16 @@ MIN_SAMPLES = 5
 #   bufsize: expected length in bytes of the response
 #   nblocks: number of blocks in the response (each block is separated by a '!' character)
 COMMAND_DATA = {
-    'A' : {'bufsize':30, 'nblocks':2}, # Internal name
-    'B' : {'bufsize':30, 'nblocks':2}, # Firmware version
+    'A' : {'bufsize':30, 'nblocks':3}, # Internal name
+    'B' : {'bufsize':30, 'nblocks':3}, # Firmware version
     'C' : {'bufsize':60, 'nblocks':5}, # Sensor values
-    'D' : {'bufsize':75, 'nblocks':5}, # Internal errors
-    'E' : {'bufsize':30, 'nblocks':2}, # Rain frequency
-    'F' : {'bufsize':30, 'nblocks':2}, # Switch status
-    'Q' : {'bufsize':30, 'nblocks':2}, # Get PWM value
-    'S' : {'bufsize':30, 'nblocks':2}, # Get sky IR temperature
-    'T' : {'bufsize':30, 'nblocks':2}, # Get sensor temperature
-    'K' : {'bufsize':30, 'nblocks':2}, # Serial number
+    'D' : {'bufsize':75, 'nblocks':6}, # Internal errors
+    'E' : {'bufsize':30, 'nblocks':3}, # Rain frequency
+    'F' : {'bufsize':30, 'nblocks':3}, # Switch status
+    'Q' : {'bufsize':30, 'nblocks':3}, # Get PWM value
+    'S' : {'bufsize':30, 'nblocks':3}, # Get sky IR temperature
+    'T' : {'bufsize':30, 'nblocks':3}, # Get sensor temperature
+    'K' : {'bufsize':30, 'nblocks':3}, # Serial number
 }
 
 # Info to fetch sensor data
@@ -317,16 +317,20 @@ class tcp_port:
             self.socket.send(cmd + '!')
             time.sleep(1) # Is this necessary?
             response = self.socket.recv(bufsize)
+
             if verbose:
                 print("[INFO] TCP received response: {}".format(response))
             if len(response) != bufsize:
                 print("[WARN] Incorrect number of bytes received (expected {}, got {})".format(bufsize, len(response)))
                 return None
-            blocks = response.replace(' ').split('!')
+
+            # Extract blocks
+            blocks = response.split('!')
+            data = { block[:2].strip() : block[2:].strip() for block in blocks }
             if len(blocks) != nblocks:
                 print("[WARN] Incorrect number of blocks received (expected {}, got {})".format(nblocks, len(blocks)))
                 return None
-            return blocks
+            return data
         
         except socket.error:
             print("[WARN] Failed to send TCP message")
