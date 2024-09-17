@@ -530,7 +530,7 @@ def cloudwatcher():
             sensors_samples = fetch_samples(port, args.nsamples)
 
             if args.verbose:
-                print(sensor_samples)
+                print(sensors_samples)
 
             for name, samples in sensors_samples.items():
                 clipped_samples = sigma_clip_samples(samples)
