@@ -278,7 +278,7 @@ DEVICE_DATA = {
     'serial_number'   : {'cmd':'K', 'block':1},
 }
 
-DEVICE_ERRORS = {'E1':, 'E2':0, 'E3':0, 'E4':0}
+DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
 
 
 
@@ -312,8 +312,8 @@ class tcp_port:
         Sends command to device via TCP IP port, and returns the response.
         The returned response consist on a list of "blocks".
         """
-        cmd_data = COMMAND_DATA[cmd]
-        bufsize, nblocks = cmd_data['bufsize'], cmd_data['nblocks']
+        bufsize = COMMAND_DATA[cmd]['bufsize']
+
         if verbose:
             print("[INFO] TCP sending command: {}!".format(cmd))
         
