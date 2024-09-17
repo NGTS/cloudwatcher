@@ -239,31 +239,46 @@ TCP_PORT = 4004
 # Minimum number of measurements to take from each sensor
 MIN_SAMPLES = 5
 
+# Valid commands for the cloudwatcher.
+#   bufsize: expected length in bytes of the response
+#   nblocks: number of blocks in the response (each block is separated by a '!' character)
+COMMAND_DATA = {
+    'A' : {'bufsize':30, 'nblocks':2}, # Internal name
+    'B' : {'bufsize':30, 'nblocks':2}, # Firmware version
+    'C' : {'bufsize':60, 'nblocks':5}, # Sensor values
+    'D' : {'bufsize':75, 'nblocks':5}, # Internal errors
+    'E' : {'bufsize':30, 'nblocks':2}, # Rain frequency
+    'F' : {'bufsize':30, 'nblocks':2}, # Switch status
+    'Q' : {'bufsize':30, 'nblocks':2}, # Get PWM value
+    'S' : {'bufsize':30, 'nblocks':2}, # Get sky IR temperature
+    'T' : {'bufsize':30, 'nblocks':2}, # Get sensor temperature
+    'K' : {'bufsize':30, 'nblocks':2}, # Serial number
+}
+
 # Info to fetch sensor data
 #   cmd: command to send to device
-#   bufsize: expected size of data received from the device
-#   idx: index in the returned buffer where sensor data is located
+#   idx: index (block) in the returned sensor data where measurement is located
 SENSOR_DATA = {
-    'ambient_temp'   : {'cmd':'T', 'bufsize':30, 'idx':1},
-    'rain_freq'      : {'cmd':'E', 'bufsize':30, 'idx':1},
-    'sky_temp_c'     : {'cmd':'S', 'bufsize':30, 'idx':1},
-    'ldr'            : {'cmd':'C', 'bufsize':60, 'idx':2},
-    'rain_sens_temp' : {'cmd':'C', 'bufsize':60, 'idx':3},
+    'ambient_temp'   : {'cmd':'T', 'idx':1},
+    'rain_freq'      : {'cmd':'E', 'idx':1},
+    'sky_temp_c'     : {'cmd':'S', 'idx':1},
+    'ldr'            : {'cmd':'C', 'idx':2},
+    'rain_sens_temp' : {'cmd':'C', 'idx':3},
 }
 
 DEVICE_DATA = {
-    'pwm'             : {'cmd':'Q', 'bufsize':30},
-    'device_name'     : {'cmd':'A', 'bufsize':30},
-    'firmware_version': {'cmd':'B', 'bufsize':30},
-    'serial_number'   : {'cmd':'K', 'bufsize':30},
-    'device_errors'   : {'cmd':'D', 'bufsize':75}
+    'pwm'             : {'cmd':'Q', 'idx':1},
+    'device_name'     : {'cmd':'A', 'idx':1},
+    'firmware_version': {'cmd':'B', 'idx':1},
+    'serial_number'   : {'cmd':'K', 'idx':1},
+    'device_errors'   : {'cmd':'D', 'idx':1}
 }
 
 DEVICE_ERRORS = {'E1':0, 'E2':0, 'E3':0, 'E4':0}
 
 
 
-class tcp_open_port:
+class tcp_port:
     """
     Context manager for opening and closing TCP ports
     """
@@ -283,48 +298,40 @@ class tcp_open_port:
             exit()
 
     def __enter__(self):
-        return self.socket
+        return self
         
     def __exit__(self, dtype, value, traceback):
         self.socket.close()
-    
 
-# @contextmanager
-# def tcp_open_port():
-#     """
-#     Open a TCP IP port as a context manager
-#     """
-#     try:
-#         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#         s.connect((TCP_IP, TCP_PORT))
-#         s.settimeout(1)
-#         s.setblocking(False)
-#         yield s
-#     except socket.error:
-#         print('Cannot open port at {}:{}'.format(TCP_IP, TCP_PORT))
-#     finally:
-#         s.close()
-
-
-def tcp_send(port, cmd, bufsize, verbose = False):
-    """
-    Sends command to device via TCP IP port, and returns the response.
-    """
-    try:
+    def send(self, cmd, verbose = False):
+        """
+        Sends command to device via TCP IP port, and returns the response.
+        The returned response consist on a list of "blocks".
+        """
+        cmd_data = COMMAND_DATA[cmd]
+        bufsize, nblocks = cmd_data['bufsize'], cmd_data['nblocks']
         if verbose:
             print("[INFO] TCP sending command: {}!".format(cmd))
-        port.send(cmd + '!')
-        time.sleep(1) # Is this necessary?
-        response = port.recv(bufsize)
-        if verbose:
-            print("[INFO] TCP received response: {}".format(response))
-        if len(response) == bufsize:
-            return response
-        print("[WARN] Response size does not match expected size ({} != {})".format(len(response), bufsize))
-        return None
-    except socket.error:
-        print("[WARN] Failed to send TCP message")
-        return None
+        
+        try:
+            self.socket.send(cmd + '!')
+            time.sleep(1) # Is this necessary?
+            response = self.socket.recv(bufsize)
+            if verbose:
+                print("[INFO] TCP received response: {}".format(response))
+            if len(response) != bufsize:
+                print("[WARN] Incorrect number of bytes received (expected {}, got {})".format(bufsize, len(response)))
+                return None
+            blocks = response.replace(' ').split('!')
+            if len(blocks) != nblocks:
+                print("[WARN] Incorrect number of blocks received (expected {}, got {})".format(nblocks, len(blocks)))
+                return None
+            return blocks
+        
+        except socket.error:
+            print("[WARN] Failed to send TCP message")
+            return None
+
 
 
 def save_to_db(host, sensor_values, device_errors, pwm, debug = False):
@@ -379,9 +386,9 @@ def get_input_args():
 
 
 def print_device_info(port):
-    device_name   = tcp_send(port, 'A', 30)
-    firmware_version    = tcp_send(port, 'B', 30)
-    serial_num = tcp_send(port, 'K', 30)
+    device_name = port.send('A')
+    firmware_version = port.send('B')
+    serial_num = port.send('K')
 
     if device_name is None:
         print("[ERROR] Failed to connect to cloudwatcher!")
@@ -394,8 +401,6 @@ def print_device_info(port):
 
 def fetch_measurements(port, sensor_data, nsamples):
     results = [ tcp_send(port, sensor_data['cmd'], sensor_data['bufsize']) for i in nsamples ]
-
-
 
 def sigma_clip_samples(samples):
     pass
@@ -425,18 +430,20 @@ def cloudwatcher():
     if args.verbose:
         print("[INFO] Connected to central hub")
 
-    with tcp_open_port(TCP_IP, TCP_PORT) as port:
+    with tcp_port(TCP_IP, TCP_PORT) as port:
             
         if args.verbose:
             print_device_info(port)
 
         for field_name, field_data in DEVICE_DATA.items():
-            print(field_name + "...")
-            tcp_send(port, field_data['cmd'], field_data['bufsize'])
-        
+            print(field_name + ": ", )
+            resp = port.send(field_data['cmd'], verbose = args.verbose)
+            print(resp)
+
         for sensor_name, sensor_data in SENSOR_DATA.items():
             print(sensor_name + " ...")
-            tcp_send(port, sensor_data['cmd'], sensor_data['bufsize'])
+            resp = port.send(sensor_data['cmd'], verbose = args.verbose)
+            print(resp)
 
         exit()
 
