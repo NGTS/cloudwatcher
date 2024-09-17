@@ -247,7 +247,7 @@ MIN_SAMPLES = 5
 COMMAND_DATA = {
     'A' : {'bufsize':30 }, # Internal name
     'B' : {'bufsize':30 }, # Firmware version
-    'C' : {'bufsize':90 }, # Sensor values
+    'C' : {'bufsize':75 }, # Sensor values
     'D' : {'bufsize':75 }, # Internal errors
     'E' : {'bufsize':30 }, # Rain frequency
     'F' : {'bufsize':30 }, # Switch status
@@ -278,6 +278,9 @@ DEVICE_DATA = {
 
 # Block names for device errors
 DEVICE_ERRORS = ['E1', 'E2', 'E3', 'E4']
+
+# Commands run multiple times per loop to fetch measurements
+SAMPLING_COMMANDS = ['T', 'E', 'S', 'C']
 
 
 class tcp_port:
@@ -420,9 +423,14 @@ def print_device_info(port):
     print("[INFO] Serial Number: {}".format(serial_num))
 
 
-def fetch_measurements(port, sensor_data, nsamples):
-    results = [ port.send(sensor_data['cmd']) for i in nsamples ]
-
+def fetch_samples(port, nsamples):
+    """
+    Request a number of measurements from the sensors
+    """
+    sensor_results = {cmd: [port.send(cmd) for i in range(nsamples)] for cmd in SAMPLING_COMMANDS }
+    sensor_samples = {name: sensor_results[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
+    return sensor_samples
+    
 
 def sigma_clip_samples(samples):
     """
@@ -469,14 +477,12 @@ def get_ambient_temp(temp):
 def cloudwatcher():
     
     args = get_input_args()
-    if args.nsamples <= MIN_SAMPLES:
-        print("[ERROR] Number of samples must be greater than {}".format(MIN_SAMPLES))
-    
+    if args.nsamples < MIN_SAMPLES:
+        print("[ERROR] Number of samples must be >= {}".format(MIN_SAMPLES))
+        return
+
     if args.debug:
         args.verbose = True
-
-    # Initialise dict of sensor values
-    sensor_values = {k:0 for k in SENSOR_DATA.keys()}
 
     host = socket.gethostname()
     if args.verbose:
@@ -486,36 +492,63 @@ def cloudwatcher():
     if args.verbose:
         print("[INFO] Connected to central hub")
 
+    # Initialise dict of sensor values
+    sensor_values = {k:0 for k in SENSOR_DATA.keys()}
+
     with tcp_port(TCP_IP, TCP_PORT) as port:
-            
+        
         if args.verbose:
             print_device_info(port)
 
-        for cmd in COMMAND_DATA:
-            resp = port.send(cmd, verbose = args.verbose)
-            print(resp)
-
-        exit()
+        if args.debug:
+            print("[DEBUG] Checking TCP commands...")
+            for cmd in COMMAND_DATA:
+                resp = port.send(cmd, verbose = args.verbose)
+                print("[DEBUG] Structured response: {}".format(resp))
+            print("[DEBUG] Finished checking commands")
 
         while(1):
 
-            # Calculate averaged sensor measurements
-            for sensor_name, sensor_data in SENSOR_DATA.items():
-                samples = fetch_measurements(port, sensor_data, args.nsamples)
-                if samples is None:
-                    print("[ERROR] Could not fetch measurements for sensor '{}'".format(sensor_name))
-                    sensor_values[sensor_name] = 0 # Replace with error value, e.g. NaN
-                    continue
+            # Handshake with central hub
+            hub.report_in('cloud_watcher')
+
+            # Fetch sensor samples
+            sensors_samples = fetch_samples(port, args.nsamples)
+
+            if args.verbose:
+                print(sensor_samples)
+
+            for name, samples in sensors_samples.items():
                 clipped_samples = sigma_clip_samples(samples)
-                sensor_values[sensor_name] = np.mean(clipped_samples)
+                sensor_values[name] = np.mean(clipped_samples)
             
-            # Apply specific adjustments to e.g. temperature
+            if args.verbose:
+                print(sensor_values)
+
+            # Apply specific adjustments to quantities
+            # TODO
             
-            # Fetch extra info, e.g. errors and pwm
+            # Fetch power m... cycle
+            pwm = port.send(DEVICE_DATA['pwm'])
+            pwm = int(pwm['Q'])
+            pwm = get_pwm_percent(pwm)
+            if verbose:
+                print("[INFO] PWM = {}".format(pwm))
+
+            # Check device errors
             device_errors = fetch_device_errors()
-            
-            print(sensor_values)
-            print(device_errors)
+            any_errors = False
+            for name, err in device_errors.items():
+                if verbose:
+                    print("[INFO] Error {} = {}".format(name, err))
+                if err == 0: continue
+                print("[ERROR] Device error! {} = {}".format(name, err))
+                any_errors = True
+
+            if any_errors:
+                return
+
+            exit()
 
             # Save all to DB
             # save_to_db(host, sensor_values, device_errors, pwm, debug = False):
