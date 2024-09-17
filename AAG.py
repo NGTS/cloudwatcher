@@ -549,7 +549,7 @@ def cloudwatcher():
                 sensor_values[name] = np.mean(clipped_samples)
             
             if args.verbose:
-                print("[INFO] FInal values: ", sensor_values)
+                print("[INFO] Final values: ", sensor_values)
 
             # Apply specific adjustments to quantities
             # TODO
