@@ -308,6 +308,29 @@ class tcp_port:
     def __exit__(self, dtype, value, traceback):
         self.socket.close()
 
+    def _extract_blocks(self, response):
+        blocks = response.split('!')
+        data = {}
+
+        for block in blocks:
+            key = block[:2].replace(' ','')
+            value = block[2:].replace(' ','')
+
+            # Ignore empty or handshaking block
+            if key == '' or key == '\x11':
+                continue
+
+            # Special case of requesting serial number
+            if block[0] == 'K':
+                key = 'K'
+                value = block[1:].replace(' ','')
+
+            value = value.replace('\x00', '')
+            data[key] = value
+        
+        return data
+
+
     def send(self, cmd, verbose = False):
         """
         Sends command to device via TCP IP port, and returns the response.
@@ -331,27 +354,9 @@ class tcp_port:
                 return None
 
             # Extract blocks from message
-            blocks = response.split('!')
-            data = {}
-
-            for block in blocks:
-                key = block[:2].replace(' ','')
-                value = block[2:].replace(' ','')
-
-                # Ignore empty or handshaking block
-                if key == '' or key == '\x11':
-                    continue
-
-                # Special case of requesting serial number
-                if block[0] == 'K':
-                    key = 'K'
-                    value = block[1:].replace(' ','')
-
-                value = value.replace('\x00', '')
-                data[key] = value
-            
+            data = self._extract_blocks(respone)
             return data
-        
+
         except socket.error:
             print("[WARN] Failed to send TCP message")
             return None
@@ -427,8 +432,17 @@ def fetch_samples(port, nsamples):
     """
     Request a number of measurements from the sensors
     """
-    sensor_results = {cmd: [port.send(cmd) for i in range(nsamples)] for cmd in SAMPLING_COMMANDS }
-    sensor_samples = {name: sensor_results[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
+
+    cmd_samples = {}
+
+    for cmd in SAMPLING_COMMANDS:
+        results = [port.send(cmd) for i in range(nsamples)]
+        blocks = results[0].keys()
+        # Reformat result from list of dicts to dict of lists
+        results = {block: [r[block] for r in results] for block in blocks}
+        cmd_samples[cmd] = results
+
+    sensor_samples = {name: cmd_samples[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
     return sensor_samples
     
 
