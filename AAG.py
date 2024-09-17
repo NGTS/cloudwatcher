@@ -453,6 +453,7 @@ def sigma_clip_samples(samples):
     mean = np.mean(samples)
     std = np.std_dev(samples)
     good_idx = (samples <= (mean+std)) & (samples >= (mean-std))
+    print("good idx = ", good_idx)
     return samples[good_idx]
     
 
@@ -533,6 +534,8 @@ def cloudwatcher():
                 print(sensors_samples)
 
             for name, samples in sensors_samples.items():
+                if args.debug:
+                    print("[DEBUG] Combining samples for {}: {}".format(name, samples))
                 clipped_samples = sigma_clip_samples(samples)
                 sensor_values[name] = np.mean(clipped_samples)
             
