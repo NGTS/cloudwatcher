@@ -477,36 +477,37 @@ def get_light_sensor_mpsas(light_sensor_period, amb_temp):
         magnitudes per square arcsecond.
     """
     sq_reference = 19.6
-    mpsas = sq_reference - 2.5 * np.log10(250000/light_sensor_period)
+    mpsas = sq_reference - 2.5 * np.log10(250000.0/light_sensor_period)
     mpsas_corr = (mpsas - 0.042) + (0.00212 * amb_temp)
     return mpsas_corr
 
 def get_ir_temp(temp):
-    return temp/100
+    return temp/100.0
 
 def get_ir_sensor_temp(temp):
-    return temp/100
+    return temp/100.0
 
 def get_pwm_percent(pwm):
     """ Pulse width modulation as a percent from a sensor measurement """
-    return 100 * pwm / 1023
+    return 100.0 * pwm / 1023.0
 
 def get_ambient_temp(sensor_temp):
     """
     Calculates ambient temperature from the value measured by the sensor
     """
-    if sensor_temp > 1022: sensor_temp = 1022
-    elif sensor_temp < 1:  sensor_temp = 1
+    sensor_value = float(sensor_value)
+    if sensor_temp > 1022.0: sensor_temp = 1022.0
+    elif sensor_temp < 1.0:  sensor_temp = 1.0
 
     amb_pull_up_resistance = 9.9
-    amb_res_at_25 = 10
-    amb_beta = 3811
+    amb_res_at_25 = 10.0
+    amb_beta = 3811.0
     abs_zero = 273.15
     
     # Resistance in K * Ohm
-    r = amb_pull_up_resistance / ( (1023/sensor_temp) - 1 )
+    r = amb_pull_up_resistance / ( (1023.0/sensor_temp) - 1.0 )
     r = np.log(r / amb_res_at_25)
-    temp_amb = 1 / (r / amb_beta + 1 / (abs_zero+25) ) - abs_zero
+    temp_amb = 1.0 / (r / amb_beta + 1.0 / (abs_zero + 25.0) ) - abs_zero
     return temp_amb
 
 
@@ -514,17 +515,18 @@ def get_rain_sensor_temp(sensor_value):
     """
     Calculate the temperature in Celsius of the rain sensor
     """
-    if sensor_value > 1022: sensor_value = 1022
-    elif sensor_value < 1:  sensor_value = 1
+    sensor_value = float(sensor_value)
+    if sensor_value > 1022.0: sensor_value = 1022.0
+    elif sensor_value < 1.0:  sensor_value = 1.0
 
-    rain_ull_up_resistance = 1
-    rain_res_at_25 = 1
-    rain_beta = 3450
+    rain_ull_up_resistance = 1.0
+    rain_res_at_25 = 1.0
+    rain_beta = 3450.0
     abs_zero = 273.15
 
-    r = rain_pull_up_resistance / ((1023 / sensor_value) - 1) # resistance K ohms
+    r = rain_pull_up_resistance / ((1023.0 / sensor_value) - 1.0) # resistance K ohms
     r = np.log(r / rain_res_at_25)
-    rain_st = 1 / (r / rain_beta + 1 / (abs_zero + 25)) - abs_zero
+    rain_st = 1.0 / (r / rain_beta + 1.0 / (abs_zero + 25.0)) - abs_zero
     return rain_st
 
 
