@@ -418,17 +418,17 @@ def get_input_args():
 
 
 def print_device_info(port):
-    device_name = port.send('A')
+    device_name      = port.send('A')
     firmware_version = port.send('B')
-    serial_num = port.send('K')
+    serial_num       = port.send('K')
 
     if device_name is None:
-        print("[ERROR] Failed to connect to cloudwatcher!")
+        print("[ERROR] Cannot retrieve device info - failed to connect to cloudwatcher!")
 
     print("[INFO] Connected to AAG Cloudwatcher")
-    print("[INFO] Device name: {}".format(device_name))
-    print("[INFO] Firmware version: {}".format(firmware_version))
-    print("[INFO] Serial Number: {}".format(serial_num))
+    print("[INFO] Device name: {}".format(device_name['N']))
+    print("[INFO] Firmware version: {}".format(firmware_version['V']))
+    print("[INFO] Serial Number: {}".format(serial_num['K']))
 
 
 def fetch_samples(port, nsamples):
@@ -447,7 +447,7 @@ def fetch_samples(port, nsamples):
 
     sensor_samples = {name: cmd_samples[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
     
-    # Convert dtypes to int
+    # Convert sensor measurements to int
     sensor_samples = {k: [int(v) for v in samples] for k,samples in sensor_samples.items()}
     
     return sensor_samples
@@ -467,15 +467,18 @@ def sigma_clip_samples(samples):
     
 
 def fetch_device_errors(port):
-    resp = port.send(port, 'D')
+    resp = port.send('D')
     errors = { k: int(v) for k,v in resp.items() }
     return errors
 
 
-def get_light_sensor_mpsas(period, temp):
-    sqreference = 19.6
-    mpsas = sqreference - 2.5 * np.log10(250000/period)
-    mpsas_corr = (mpsas - 0.042) + (0.00212 * temp)
+def get_light_sensor_mpsas(light_sensor_period, amb_temp):
+    """ Return light sensor measurement in units of
+        magnitudes per square arcsecond.
+    """
+    sq_reference = 19.6
+    mpsas = sq_reference - 2.5 * np.log10(250000/light_sensor_period)
+    mpsas_corr = (mpsas - 0.042) + (0.00212 * amb_temp)
     return mpsas_corr
 
 def get_ir_temp(temp):
@@ -485,17 +488,45 @@ def get_ir_sensor_temp(temp):
     return temp/100
 
 def get_pwm_percent(pwm):
+    """ Pulse width modulation as a percent from a sensor measurement """
     return 100 * pwm / 1023
 
-def get_ambient_temp(temp):
-    if temp > 1022: temp = 1022
-    elif temp < 1:  temp = 1
+def get_ambient_temp(sensor_temp):
+    """
+    Calculates ambient temperature from the value measured by the sensor
+    """
+    if sensor_temp > 1022: sensor_temp = 1022
+    elif sensor_temp < 1:  sensor_temp = 1
+
+    amb_pull_up_resistance = 9.9
+    amb_res_at_25 = 10
+    amb_beta = 3811
+    abs_zero = 273.15
     
     # Resistance in K * Ohm
-    r = amb_pull_up_resistance / ( (1023/temp) - 1 )
+    r = amb_pull_up_resistance / ( (1023/sensor_temp) - 1 )
     r = np.log(r / amb_res_at_25)
     temp_amb = 1 / (r / amb_beta + 1 / (abs_zero+25) ) - abs_zero
-    return None
+    return temp_amb
+
+
+def get_rain_sensor_temp(sensor_value):
+    """
+    Calculate the temperature in Celsius of the rain sensor
+    """
+    if sensor_value > 1022: sensor_value = 1022
+    elif sensor_value < 1:  sensor_value = 1
+
+    rain_ull_up_resistance = 1
+    rain_res_at_25 = 1
+    rain_beta = 3450
+    abs_zero = 273.15
+
+    r = rain_pull_up_resistance / ((1023 / sensor_value) - 1) # resistance K ohms
+    r = np.log(r / rain_res_at_25)
+    rain_st = 1 / (r / rain_beta + 1 / (abs_zero + 25)) - abs_zero
+    return rain_st
+
 
 
 def cloudwatcher():
@@ -549,30 +580,33 @@ def cloudwatcher():
                 sensor_values[name] = np.mean(clipped_samples)
             
             if args.verbose:
-                print("[INFO] Final values: ", sensor_values)
+                print("[INFO] Final values: {}".format(sensor_values))
 
             # Apply specific adjustments to quantities
-            # TODO
+            sensor_values['ambient_temp'] = get_ambient_temp(sensor_values['ambient_temp'])
+            sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
+            sensor_values['sky_temp_c'] = get_ir_temp(sensor_values['sky_temp_c'])
+            sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
+            # get_ir_sensor_temp(temp)
+            # Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             
-            # Fetch power m... cycle
+            print("[INFO] Sensor values: {}".format(sensor_values))
+            
+            # Fetch Pulse Width Modulation duty cycle 
             pwm = port.send(DEVICE_DATA['pwm']['cmd'], verbose = args.verbose)
             pwm = int(pwm['Q'])
             pwm = get_pwm_percent(pwm)
-            if verbose:
+            if args.verbose:
                 print("[INFO] PWM = {}".format(pwm))
 
             # Check device errors
-            device_errors = fetch_device_errors()
-            any_errors = False
+            device_errors = fetch_device_errors(port)
             for name, err in device_errors.items():
-                if verbose:
+                if args.verbose:
                     print("[INFO] Error {} = {}".format(name, err))
                 if err == 0: continue
-                print("[ERROR] Device error! {} = {}".format(name, err))
-                any_errors = True
+                print("[WARN] Device error {} = {}".format(name, err))
 
-            if any_errors:
-                return
 
             exit()
 
