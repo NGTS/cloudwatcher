@@ -366,7 +366,7 @@ class tcp_port:
 
 
 
-def save_to_db(host, sensor_values, device_errors, pwm, debug = False):
+def save_to_db(host, sensor_values, device_errors, pwm, debug = False, verbose = False):
     """
     Log the output to the cloudwatcher database
     """
@@ -405,6 +405,8 @@ def save_to_db(host, sensor_values, device_errors, pwm, debug = False):
     try:
         with pymysql.connect(host='ds', db='ngts_ops') as cur:
             cur.execute(qry)
+        if verbose:
+            print("[INFO] Sensor values saved to database")
     except:
         print('[WARN] Database connection error, skipping...')
 
@@ -593,7 +595,9 @@ def cloudwatcher():
             # get_ir_sensor_temp(temp)
             # Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             
-            print("[INFO] Sensor values: {}".format(sensor_values))
+            # Print sensor readings every step
+            for k,v in sensor_values:
+                print("{} = {:.2f}, ".format(k, v))
             
             # Fetch Pulse Width Modulation duty cycle 
             pwm = port.send(DEVICE_DATA['pwm']['cmd'], verbose = args.verbose)
@@ -610,11 +614,8 @@ def cloudwatcher():
                 if err == 0: continue
                 print("[WARN] Device error {} = {}".format(name, err))
 
-
-            exit()
-
             # Save all to DB
-            # save_to_db(host, sensor_values, device_errors, pwm, debug = False):
+            save_to_db(host, sensor_values, device_errors, pwm, debug = args.debug, verbose = args.verbose)
 
 
 if __name__ == "__main__":
