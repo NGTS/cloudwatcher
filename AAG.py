@@ -519,7 +519,7 @@ def get_sky_temp(amb_temp, ir_temp):
     """
     # Correction terms
     k = np.array([33.0/100.0, 0.0/10.0, 4.0/100.0, 100.0/1000.0, 100.0/100.0])
-    sky_temp = k[0] * (amb_temp - k[1]) + k[2] * np.pow( np.exp(k[3] * amb_temp), k[4] )
+    sky_temp = k[0] * (amb_temp - k[1]) + k[2] ** ( np.exp(k[3] * amb_temp), k[4] )
     return ir_temp - sky_temp
 
 
