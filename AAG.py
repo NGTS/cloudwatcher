@@ -569,7 +569,7 @@ def cloudwatcher():
             sensors_samples = fetch_samples(port, args.nsamples)
 
             if args.verbose:
-                print(sensors_samples)
+                print("[INFO] Sensor samples: {}".format(sensors_samples))
 
             for name, samples in sensors_samples.items():
                 if args.debug:
@@ -606,10 +606,10 @@ def cloudwatcher():
                 print("[WARN] Device error {} = {}".format(name, err))
 
             # Print sensor readings every step
-            status_str = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-            status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in sensor_values.items() ])
+            status_str = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]") + ', '
+            status_str += ', '.join([ "{} = {:.2f}".format(k,v) for k,v in sensor_values.items() ])
             status_str += "pwm = {}, ".format(pwm)
-            status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in device_errors.items() ])
+            status_str += ', '.join([ "{} = {:.2f}".format(k,v) for k,v in device_errors.items() ])
             print(status_str)
 
             # Save all to DB
