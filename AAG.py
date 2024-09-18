@@ -291,9 +291,10 @@ class tcp_port:
     Context manager for opening and closing TCP ports
     """
     
-    def __init__(self, ip, port_num):
+    def __init__(self, ip, port_num, wait_time = TCP_AWAIT_SECONDS):
         self.ip = ip
         self.port_num = port_num
+        self.wait_time = wait_time
         
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -303,7 +304,7 @@ class tcp_port:
         
         except socket.error:
             print('[ERROR] Cannot open port at {}:{}'.format(self.ip, self.port_num))
-            exit()
+            exit(-1)
 
     def __enter__(self):
         return self
@@ -346,18 +347,18 @@ class tcp_port:
         
         try:
             self.socket.send(cmd + '!')
-            time.sleep(TCP_AWAIT_SECONDS) # Is this necessary?
+            time.sleep(self.wait_time)
             response = self.socket.recv(bufsize)
 
-            if verbose:
-                print("[INFO] TCP received response: {}".format(response))
-            
             if len(response) != bufsize:
                 print("[WARN] Incorrect number of bytes received (expected {}, got {})".format(bufsize, len(response)))
-                return None
 
             # Extract blocks from message
             data = self._extract_blocks(response)
+            
+            if verbose:
+                print("[INFO] TCP received response: {}".format(data))
+            
             return data
 
         except socket.error:
@@ -416,7 +417,22 @@ def get_input_args():
     parser.add_argument('-n', '--nsamples', help="Number of measurements to take", type = int, default = 5)
     parser.add_argument('-v', '--verbose', help="Print extra information", action='store_true')
     parser.add_argument('--debug', help="Debug mode. No info is saved to the database", action='store_true')
-    return parser.parse_args()
+    parser.add_argument('-w', '--wait', help="Number of seconds to wait for TCP response", type = float, default = TCP_AWAIT_SECONDS)
+    
+    args = parser.parse_args()
+
+    if args.nsamples < MIN_SAMPLES:
+        print("[ERROR] Number of samples must be >= {}".format(MIN_SAMPLES))
+        exit(-1)
+
+    if args.wait <= 0.0:
+        print("[ERROR] TCP wait time must be greater than zero")
+        exit(-1)
+
+    if args.debug:
+        args.verbose = True
+
+    return args
 
 
 def print_device_info(port):
@@ -521,12 +537,6 @@ def get_rain_sensor_temp(sensor_value):
 def cloudwatcher():
     
     args = get_input_args()
-    if args.nsamples < MIN_SAMPLES:
-        print("[ERROR] Number of samples must be >= {}".format(MIN_SAMPLES))
-        return
-
-    if args.debug:
-        args.verbose = True
 
     host = socket.gethostname()
     if args.verbose:
@@ -539,7 +549,7 @@ def cloudwatcher():
     # Initialise dict of sensor values
     sensor_values = {k:0 for k in SENSOR_DATA.keys()}
 
-    with tcp_port(TCP_IP, TCP_PORT) as port:
+    with tcp_port(TCP_IP, TCP_PORT, wait_time = args.wait) as port:
         
         if args.verbose:
             print_device_info(port)
@@ -547,8 +557,7 @@ def cloudwatcher():
         if args.debug:
             print("[DEBUG] Checking TCP commands...")
             for cmd in COMMAND_DATA:
-                resp = port.send(cmd, verbose = args.verbose)
-                print("[DEBUG] Structured response: {}".format(resp))
+                port.send(cmd, verbose = args.verbose)
             print("[DEBUG] Finished checking commands")
 
         while(1):
