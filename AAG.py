@@ -520,7 +520,7 @@ def get_rain_sensor_temp(sensor_value):
     if sensor_value > 1022.0: sensor_value = 1022.0
     elif sensor_value < 1.0:  sensor_value = 1.0
 
-    rain_ull_up_resistance = 1.0
+    rain_pull_up_resistance = 1.0
     rain_res_at_25 = 1.0
     rain_beta = 3450.0
     abs_zero = 273.15
