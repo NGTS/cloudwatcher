@@ -590,10 +590,6 @@ def cloudwatcher():
             sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
             sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
 
-            # Print sensor readings every step
-            for k,v in sensor_values.items():
-                print("{} = {:.2f}, ".format(k, v))
-            
             # Fetch Pulse Width Modulation duty cycle 
             pwm = port.send(DEVICE_DATA['pwm']['cmd'], verbose = args.verbose)
             pwm = int(pwm['Q'])
@@ -608,6 +604,13 @@ def cloudwatcher():
                     print("[INFO] Error {} = {}".format(name, err))
                 if err == 0: continue
                 print("[WARN] Device error {} = {}".format(name, err))
+
+            # Print sensor readings every step
+            status_str = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+            status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in sensor_values.items() ])
+            status_str += "pwr = {}, ".format(pwr)
+            status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in device_errors.items() ])
+            print(status_str)
 
             # Save all to DB
             save_to_db(host, sensor_values, device_errors, pwm, debug = args.debug, verbose = args.verbose)
