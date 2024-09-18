@@ -608,7 +608,7 @@ def cloudwatcher():
             # Print sensor readings every step
             status_str = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
             status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in sensor_values.items() ])
-            status_str += "pwr = {}, ".format(pwr)
+            status_str += "pwm = {}, ".format(pwm)
             status_str += ', '.join([ "{} = {:.2f}, ".format(k,v) for k,v in device_errors.items() ])
             print(status_str)
 
