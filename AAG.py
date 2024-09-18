@@ -483,35 +483,10 @@ def get_light_sensor_mpsas(light_sensor_period, amb_temp):
     mpsas_corr = (mpsas - 0.042) + (0.00212 * amb_temp)
     return mpsas_corr
 
-def get_ir_temp(temp):
-    return temp/100.0
-
-def get_ir_sensor_temp(temp):
-    return temp/100.0
-
 def get_pwm_percent(pwm):
     """ Pulse width modulation as a percent from a sensor measurement """
     return 100.0 * pwm / 1023.0
 
-
-def get_ambient_temp(sensor_value):
-    """
-    Calculates ambient temperature from the value measured by the sensor
-    """
-    sensor_value = float(sensor_value)
-    if sensor_value > 1022.0: sensor_value = 1022.0
-    elif sensor_value < 1.0:  sensor_value = 1.0
-
-    amb_pull_up_resistance = 9.9
-    amb_res_at_25 = 10.0
-    amb_beta = 3811.0
-    abs_zero = 273.15
-    
-    # Resistance in K * Ohm
-    r = amb_pull_up_resistance / ( (1023.0/sensor_value) - 1.0 )
-    r = np.log(r / amb_res_at_25)
-    temp_amb = 1.0 / (r / amb_beta + 1.0 / (abs_zero + 25.0) ) - abs_zero
-    return temp_amb
 
 def get_sky_temp(amb_temp, ir_temp):
     """
@@ -597,15 +572,16 @@ def cloudwatcher():
                 print("[INFO] Final values: {}".format(sensor_values))
 
             # Apply specific adjustments to quantities
-            sensor_values['ambient_temp'] = get_ambient_temp(sensor_values['ambient_temp'])
-            sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
-            sensor_values['sky_temp_c'] = get_ir_temp(sensor_values['sky_temp_c'])
-            sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
-            # get_ir_sensor_temp(temp)
-            # Rain frequency requires no corrections, the sensor value is the true rain frequency                       
-            
+            # NOTE: Rain frequency requires no corrections, the sensor value is the true rain frequency                       
+            # -- Convert temperatures to celsius
+            sensor_values['ambient_temp'] /= 100.0
+            sensor_values['sky_temp_c'] /= 100.0
             corr_sky_temp = get_sky_temp(sensor_values['ambient_temp'], sensor_values['sky_temp_c'])
-            print("[DEBUG] corrected sky temp = {}".format(corr_sky_temp))
+
+            sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
+            sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
+            
+            print("[DEBUG] Corrected sky temp = {}".format(corr_sky_temp))
 
             # Print sensor readings every step
             for k,v in sensor_values.items():
