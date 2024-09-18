@@ -488,14 +488,14 @@ def get_pwm_percent(pwm):
     return 100.0 * pwm / 1023.0
 
 
-def get_sky_temp(amb_temp, ir_temp):
+def get_sky_temp(amb_temp, sky_temp):
     """
     correct the sky temp for the ambient
     """
     # Correction terms
     k = np.array([33.0/100.0, 0.0/10.0, 4.0/100.0, 100.0/1000.0, 100.0/100.0])
-    sky_temp = k[0] * (amb_temp - k[1]) + k[2] ** ( np.exp(k[3] * amb_temp), k[4] )
-    return ir_temp - sky_temp
+    temp_corr = k[0] * (amb_temp - k[1]) + k[2] * np.exp(k[3] * amb_temp) ** k[4] 
+    return sky_temp - temp_corr
 
 
 def get_rain_sensor_temp(sensor_value):
@@ -569,19 +569,17 @@ def cloudwatcher():
                 sensor_values[name] = np.mean(clipped_samples)
             
             if args.verbose:
-                print("[INFO] Final values: {}".format(sensor_values))
+                print("[INFO] Averaged clipped values: {}".format(sensor_values))
 
             # Apply specific adjustments to quantities
             # NOTE: Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             # -- Convert temperatures to celsius
             sensor_values['ambient_temp'] /= 100.0
             sensor_values['sky_temp_c'] /= 100.0
-            corr_sky_temp = get_sky_temp(sensor_values['ambient_temp'], sensor_values['sky_temp_c'])
-
+            
+            sensor_values['sky_temp_c'] = get_sky_temp(sensor_values['ambient_temp'], sensor_values['sky_temp_c'])
             sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
             sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
-            
-            print("[DEBUG] Corrected sky temp = {}".format(corr_sky_temp))
 
             # Print sensor readings every step
             for k,v in sensor_values.items():
