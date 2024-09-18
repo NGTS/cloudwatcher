@@ -479,7 +479,7 @@ def get_light_sensor_mpsas(light_sensor_period, amb_temp):
         magnitudes per square arcsecond.
     """
     sq_reference = 19.6
-    mpsas = sq_reference - 2.5 * np.log10(250000.0/light_sensor_period)
+    mpsas = sq_reference - 2.5 * np.log(250000.0/light_sensor_period)
     mpsas_corr = (mpsas - 0.042) + (0.00212 * amb_temp)
     return mpsas_corr
 
@@ -512,6 +512,15 @@ def get_ambient_temp(sensor_value):
     r = np.log(r / amb_res_at_25)
     temp_amb = 1.0 / (r / amb_beta + 1.0 / (abs_zero + 25.0) ) - abs_zero
     return temp_amb
+
+def get_sky_temp(amb_temp, ir_temp):
+    """
+    correct the sky temp for the ambient
+    """
+    # Correction terms
+    k = np.array([33.0/100.0, 0.0/10.0, 4.0/100.0, 100.0/1000.0, 100.0/100.0])
+    sky_temp = k[0] * (amb_temp - k[1]) + k[2] * np.pow( np.exp(k[3] * amb_temp), k[4] )
+    return ir_temp - sky_temp
 
 
 def get_rain_sensor_temp(sensor_value):
@@ -595,6 +604,9 @@ def cloudwatcher():
             # get_ir_sensor_temp(temp)
             # Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             
+            corr_sky_temp = get_sky_temp(sensor_values['ambient_temp'], sensor_values['sky_temp_c'])
+            print("[DEBUG] corrected sky temp = {}".format(corr_sky_temp))
+
             # Print sensor readings every step
             for k,v in sensor_values.items():
                 print("{} = {:.2f}, ".format(k, v))
