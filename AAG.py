@@ -491,13 +491,14 @@ def get_pwm_percent(pwm):
     """ Pulse width modulation as a percent from a sensor measurement """
     return 100.0 * pwm / 1023.0
 
-def get_ambient_temp(sensor_temp):
+
+def get_ambient_temp(sensor_value):
     """
     Calculates ambient temperature from the value measured by the sensor
     """
     sensor_value = float(sensor_value)
-    if sensor_temp > 1022.0: sensor_temp = 1022.0
-    elif sensor_temp < 1.0:  sensor_temp = 1.0
+    if sensor_value > 1022.0: sensor_value = 1022.0
+    elif sensor_value < 1.0:  sensor_value = 1.0
 
     amb_pull_up_resistance = 9.9
     amb_res_at_25 = 10.0
@@ -505,7 +506,7 @@ def get_ambient_temp(sensor_temp):
     abs_zero = 273.15
     
     # Resistance in K * Ohm
-    r = amb_pull_up_resistance / ( (1023.0/sensor_temp) - 1.0 )
+    r = amb_pull_up_resistance / ( (1023.0/sensor_value) - 1.0 )
     r = np.log(r / amb_res_at_25)
     temp_amb = 1.0 / (r / amb_beta + 1.0 / (abs_zero + 25.0) ) - abs_zero
     return temp_amb
