@@ -596,7 +596,7 @@ def cloudwatcher():
             # Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             
             # Print sensor readings every step
-            for k,v in sensor_values:
+            for k,v in sensor_values.items():
                 print("{} = {:.2f}, ".format(k, v))
             
             # Fetch Pulse Width Modulation duty cycle 
