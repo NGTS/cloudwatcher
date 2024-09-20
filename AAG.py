@@ -136,7 +136,7 @@ class tcp_port:
             response = self.socket.recv(bufsize)
 
             if len(response) != bufsize:
-                print("[WARN] Incorrect number of bytes received (expected {}, got {})".format(bufsize, len(response)))
+                print("[WARN] Incorrect number of bytes received for command {} (expected {}, got {})".format(cmd, bufsize, len(response)))
 
             # Extract blocks from message
             data = self._extract_blocks(response)
@@ -248,11 +248,17 @@ def fetch_samples(port, nsamples):
         results = {block: [r[block] for r in results] for block in blocks}
         cmd_samples[cmd] = results
 
-    sensor_samples = {name: cmd_samples[data['cmd']][data['block']] for name,data in SENSOR_DATA.items()}
+    # sensor_samples = {name: cmd_samples[data['cmd']].get(data['block'], 0.0) for name,data in SENSOR_DATA.items()}
     
-    # Convert sensor measurements to int
-    sensor_samples = {k: [int(v) for v in samples] for k,samples in sensor_samples.items()}
-    
+    sensor_samples = {}
+    for name, data in SENSOR_DATA.items():
+        values = cmd_samples[data['cmd']].get(data['block'], None)
+        if values is None:
+            print("[WARN] Failed to fetch samples for {}".format(name))
+            sensor_samples[name] = np.zeros(nsamples, dtype=int)
+        else:
+            sensor_samples[name] = np.array([int(v) for v in values])
+ 
     return sensor_samples
     
 
