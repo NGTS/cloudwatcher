@@ -245,7 +245,8 @@ def fetch_samples(port, nsamples):
         results = [port.send(cmd) for i in range(nsamples)]
         blocks = results[0].keys()
         # Reformat result from list of dicts to dict of lists
-        results = {block: [r[block] for r in results] for block in blocks}
+        # TODO: refactor this        
+        results = {block: [r.get(block, '0') for r in results] for block in blocks}
         cmd_samples[cmd] = results
 
     # sensor_samples = {name: cmd_samples[data['cmd']].get(data['block'], 0.0) for name,data in SENSOR_DATA.items()}
