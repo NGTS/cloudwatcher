@@ -29,6 +29,9 @@ TCP_PORT = 4004
 # Number of seconds to wait for TCP response
 TCP_AWAIT_SECONDS = 1
 
+# Max number of iterations to receive full TCP response
+TCP_MAX_ATTEMPTS = 5
+
 # Minimum number of measurements to take from each sensor
 MIN_SAMPLES = 5
 
@@ -134,7 +137,17 @@ class tcp_port:
         
         if VERBOSE:
             print("[INFO] TCP sending command: {}!".format(cmd))
-        
+       
+        response = ""
+
+        for i in range(TCP_MAX_ATTEMPTS):
+            try:
+				self.socket.send(cmd + '!')
+				time.sleep(self.wait_time)
+				response = self.socket.recv(bufsize)
+			except socket.error:
+				print("[WARN] Failed to send TCP message")
+
         try:
             self.socket.send(cmd + '!')
             time.sleep(self.wait_time)
