@@ -17,6 +17,11 @@ import numpy as np
 import pymysql
 import Pyro4
 
+
+# GLobal variables to signal functions whether they should print extra information
+VERBOSE = False
+DEBUG = False
+
 # IP address of Moxa where cloudwatcher is connected, and port to access it
 TCP_IP = '10.2.5.93'
 TCP_PORT = 4004
@@ -120,14 +125,14 @@ class tcp_port:
         return data
 
 
-    def send(self, cmd, verbose = False):
+    def send(self, cmd):
         """
         Sends command to device via TCP IP port, and returns the response.
         The returned response consist on a dict with the block IDs and their values.
         """
         bufsize = COMMAND_DATA[cmd]['bufsize']
 
-        if verbose:
+        if VERBOSE:
             print("[INFO] TCP sending command: {}!".format(cmd))
         
         try:
@@ -141,7 +146,7 @@ class tcp_port:
             # Extract blocks from message
             data = self._extract_blocks(response)
             
-            if verbose:
+            if VERBOSE:
                 print("[INFO] TCP received response: {}".format(data))
             
             return data
@@ -152,7 +157,7 @@ class tcp_port:
 
 
 
-def save_to_db(host, sensor_values, device_errors, pwm, debug = False, verbose = False):
+def save_to_db(host, sensor_values, device_errors, pwm):
     """
     Log the output to the cloudwatcher database
     """
@@ -183,7 +188,7 @@ def save_to_db(host, sensor_values, device_errors, pwm, debug = False, verbose =
         host
     )
 
-    if debug is True:
+    if DEBUG:
         print("[DEBUG] Query to save to database: ")
         print("[DEBUG] {}".format(qry))
         return
@@ -191,7 +196,7 @@ def save_to_db(host, sensor_values, device_errors, pwm, debug = False, verbose =
     try:
         with pymysql.connect(host='ds', db='ngts_ops') as cur:
             cur.execute(qry)
-        if verbose:
+        if VERBOSE:
             print("[INFO] Sensor values saved to database")
     except:
         print('[WARN] Database connection error, skipping...')
@@ -330,12 +335,17 @@ def cloudwatcher():
     
     args = get_input_args()
 
+    VERBOSE = args.verbose
+    DEBUG = args.debug
+    if DEBUG:
+        VERBOSE = True
+
     host = socket.gethostname()
-    if args.verbose:
+    if VERBOSE:
         print("[INFO] Host: {}".format(host))
 
     hub = Pyro4.Proxy("PYRONAME:central.hub")
-    if args.verbose:
+    if VERBOSE:
         print("[INFO] Connected to central hub")
 
     # Initialise dict of sensor values
@@ -343,13 +353,13 @@ def cloudwatcher():
 
     with tcp_port(TCP_IP, TCP_PORT, wait_time = args.wait) as port:
         
-        if args.verbose:
+        if VERBOSE:
             print_device_info(port)
 
-        if args.debug:
+        if DEBUG:
             print("[DEBUG] Checking TCP commands...")
             for cmd in COMMAND_DATA:
-                port.send(cmd, verbose = args.verbose)
+                port.send(cmd)
             print("[DEBUG] Finished checking commands")
 
         while(1):
@@ -360,16 +370,16 @@ def cloudwatcher():
             # Fetch sensor samples
             sensors_samples = fetch_samples(port, args.nsamples)
 
-            if args.verbose:
+            if VERBOSE:
                 print("[INFO] Sensor samples: {}".format(sensors_samples))
 
             for name, samples in sensors_samples.items():
-                if args.debug:
+                if DEBUG:
                     print("[DEBUG] Combining samples for {}: {}".format(name, samples))
                 clipped_samples = sigma_clip_samples(samples)
                 sensor_values[name] = np.mean(clipped_samples)
             
-            if args.verbose:
+            if VERBOSE:
                 print("[INFO] Averaged clipped values: {}".format(sensor_values))
 
             # Apply specific adjustments to quantities
@@ -383,16 +393,16 @@ def cloudwatcher():
             sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
 
             # Fetch Pulse Width Modulation duty cycle 
-            pwm = port.send(DEVICE_DATA['pwm']['cmd'], verbose = args.verbose)
+            pwm = port.send(DEVICE_DATA['pwm']['cmd'])
             pwm = int(pwm['Q'])
             pwm = get_pwm_percent(pwm)
-            if args.verbose:
+            if VERBOSE:
                 print("[INFO] PWM = {}".format(pwm))
 
             # Check device errors
             device_errors = fetch_device_errors(port)
             for name, err in device_errors.items():
-                if args.verbose:
+                if VERBOSE:
                     print("[INFO] Error {} = {}".format(name, err))
                 if err == 0: continue
                 print("[WARN] Device error {} = {}".format(name, err))
@@ -405,7 +415,7 @@ def cloudwatcher():
             print(status_str)
 
             # Save all to DB
-            save_to_db(host, sensor_values, device_errors, pwm, debug = args.debug, verbose = args.verbose)
+            save_to_db(host, sensor_values, device_errors, pwm)
 
 
 if __name__ == "__main__":
