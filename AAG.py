@@ -92,7 +92,7 @@ class tcp_port:
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect((self.ip, self.port_num))
-            self.socket.settimeout(1)
+            self.socket.settimeout(TCP_AWAIT_SECONDS)
             self.socket.setblocking(False)
         
         except socket.error:
@@ -137,23 +137,26 @@ class tcp_port:
         
         if VERBOSE:
             print("[INFO] TCP sending command '{}!' with expected response of {} bytes".format(cmd, bufsize))
-       
-        response = ""
 
+        # Send command to the device
+        try:
+            self.socket.send(cmd + '!')
+        except socket.error:
+            print("[WARN] Failed to send TCP message")
+            return None
+
+        # The respone may be received in fragments
+        # Try for TCP_MAX_ATTEMPTS to receive the total expected number of bytes
+        response = ""
         for i in range(TCP_MAX_ATTEMPTS):
-            try:
-                self.socket.send(cmd + '!')
-                time.sleep(self.wait_time)
-                response += self.socket.recv(bufsize)
-            except socket.error:
-                print("[WARN] Failed to send TCP message")
-                return None
-            
+            time.sleep(self.wait_time)
+            response += self.socket.recv(bufsize)
+
             if VERBOSE:
                 print("[INFO] TCP attempt {}/{}: received {} of {}".format(i+1, TCP_MAX_ATTEMPTS, len(response), bufsize))
 
             if len(response) >= bufsize:
-                print("[INFO] Received full response in {} attempts".format(i))
+                print("[INFO] Received full response in {} attempts".format(i+1))
                 response = response[:bufsize]
                 break
 
@@ -214,29 +217,6 @@ def save_to_db(host, sensor_values, device_errors, pwm):
             print("[INFO] Sensor values saved to database")
     except:
         print('[WARN] Database connection error, skipping...')
-
-
-def get_input_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--nsamples', help="Number of measurements to take", type = int, default = 5)
-    parser.add_argument('-v', '--verbose', help="Print extra information", action='store_true')
-    parser.add_argument('--debug', help="Debug mode. No info is saved to the database", action='store_true')
-    parser.add_argument('-w', '--wait', help="Number of seconds to wait for TCP response", type = float, default = TCP_AWAIT_SECONDS)
-    
-    args = parser.parse_args()
-
-    if args.nsamples < MIN_SAMPLES:
-        print("[ERROR] Number of samples must be >= {}".format(MIN_SAMPLES))
-        exit(-1)
-
-    if args.wait <= 0.0:
-        print("[ERROR] TCP wait time must be greater than zero")
-        exit(-1)
-
-    if args.debug:
-        args.verbose = True
-
-    return args
 
 
 def print_device_info(port):
@@ -344,16 +324,38 @@ def get_rain_sensor_temp(sensor_value):
     return rain_st
 
 
+def parse_input_args():
+    global VERBOSE, DEBUG, TCP_AWAIT_SECONDS
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--nsamples', help="Number of measurements to take", type = int, default = 5)
+    parser.add_argument('-v', '--verbose', help="Print extra information", action='store_true')
+    parser.add_argument('--debug', help="Debug mode. No info is saved to the database", action='store_true')
+    parser.add_argument('-w', '--wait', help="Number of seconds to wait for TCP response", type = float, default = TCP_AWAIT_SECONDS)
+    
+    args = parser.parse_args()
+
+    if args.nsamples < MIN_SAMPLES:
+        print("[ERROR] Number of samples must be >= {}".format(MIN_SAMPLES))
+        exit(-1)
+
+    if args.wait <= 0.0:
+        print("[ERROR] TCP wait time must be greater than zero")
+        exit(-1)
+
+    if args.debug:
+        args.verbose = True
+
+    VERBOSE = args.verbose
+    DEBUG = args.debug
+    TCP_AWAIT_SECONDS = args.wait
+
+    return args
+
 
 def cloudwatcher():
     
-    args = get_input_args()
-
-    global VERBOSE, DEBUG
-    VERBOSE = args.verbose
-    DEBUG = args.debug
-    if DEBUG:
-        VERBOSE = True
+    args = parse_input_args()
 
     host = socket.gethostname()
     if VERBOSE:
@@ -366,7 +368,7 @@ def cloudwatcher():
     # Initialise dict of sensor values
     sensor_values = {k:0 for k in SENSOR_DATA.keys()}
 
-    with tcp_port(TCP_IP, TCP_PORT, wait_time = args.wait) as port:
+    with tcp_port(TCP_IP, TCP_PORT, wait_time = TCP_AWAIT_SECONDS) as port:
         
         if VERBOSE:
             print_device_info(port)
