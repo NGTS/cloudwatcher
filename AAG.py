@@ -136,7 +136,7 @@ class tcp_port:
         bufsize = COMMAND_DATA[cmd]['bufsize']
         
         if VERBOSE:
-            print("[INFO] TCP sending command: {}!".format(cmd))
+            print("[INFO] TCP sending command '{}!' with expected response of {} bytes".format(cmd, bufsize))
        
         response = ""
 
@@ -152,8 +152,9 @@ class tcp_port:
             if VERBOSE:
                 print("[INFO] TCP attempt {}/{}: received {} of {}".format(i+1, TCP_MAX_ATTEMPTS, len(response), bufsize))
 
-            if len(response) == bufsize:
+            if len(response) >= bufsize:
                 print("[INFO] Received full response in {} attempts".format(i))
+                response = response[:bufsize]
                 break
 
         if len(response) < bufsize:
