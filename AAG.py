@@ -142,31 +142,31 @@ class tcp_port:
 
         for i in range(TCP_MAX_ATTEMPTS):
             try:
-				self.socket.send(cmd + '!')
-				time.sleep(self.wait_time)
-				response = self.socket.recv(bufsize)
-			except socket.error:
-				print("[WARN] Failed to send TCP message")
-
-        try:
-            self.socket.send(cmd + '!')
-            time.sleep(self.wait_time)
-            response = self.socket.recv(bufsize)
-
-            if len(response) != bufsize:
-                print("[WARN] Incorrect number of bytes received for command {} (expected {}, got {})".format(cmd, bufsize, len(response)))
-
-            # Extract blocks from message
-            data = self._extract_blocks(response)
+                self.socket.send(cmd + '!')
+                time.sleep(self.wait_time)
+                response += self.socket.recv(bufsize)
+            except socket.error:
+                print("[WARN] Failed to send TCP message")
+                return None
             
             if VERBOSE:
-                print("[INFO] TCP received response: {}".format(data))
-            
-            return data
+                print("[INFO] TCP attempt {}/{}: received {} of {}".format(i+1, TCP_MAX_ATTEMPTS, len(response), bufsize))
 
-        except socket.error:
-            print("[WARN] Failed to send TCP message")
+            if len(response) == bufsize:
+                print("[INFO] Received full response in {} attempts".format(i))
+                break
+
+        if len(response) < bufsize:
+            print("[WARN] Failed to fetch full response ({} bytes) in {} attempts".format(bufsize, TCP_MAX_ATTEMPTS))
             return None
+
+        # Extract blocks from message
+        data = self._extract_blocks(response)
+
+        if VERBOSE:
+            print("[INFO] TCP received response: {}".format(data))
+        
+        return data
 
 
 
