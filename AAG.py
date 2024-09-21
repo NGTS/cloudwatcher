@@ -156,7 +156,8 @@ class tcp_port:
                 print("[INFO] TCP attempt {}/{}: received {} of {}".format(i+1, TCP_MAX_ATTEMPTS, len(response), bufsize))
 
             if len(response) >= bufsize:
-                print("[INFO] Received full response in {} attempts".format(i+1))
+                if VERBOSE:
+                    print("[INFO] Received full response in {} attempts".format(i+1))
                 response = response[:bufsize]
                 break
 
