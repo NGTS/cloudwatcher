@@ -131,7 +131,7 @@ class tcp_port:
         The returned response consist on a dict with the block IDs and their values.
         """
         bufsize = COMMAND_DATA[cmd]['bufsize']
-
+        
         if VERBOSE:
             print("[INFO] TCP sending command: {}!".format(cmd))
         
@@ -335,6 +335,7 @@ def cloudwatcher():
     
     args = get_input_args()
 
+    global VERBOSE, DEBUG
     VERBOSE = args.verbose
     DEBUG = args.debug
     if DEBUG:
