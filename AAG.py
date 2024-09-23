@@ -149,11 +149,18 @@ class tcp_port:
         # Try for TCP_MAX_ATTEMPTS to receive the total expected number of bytes
         response = ""
         for i in range(TCP_MAX_ATTEMPTS):
+            if VERBOSE:
+                print("[INFO] TCP response attempt {}/{}".format(i+1, TCP_MAX_ATTEMPTS))
+        
             time.sleep(self.wait_time)
-            response += self.socket.recv(bufsize)
+            try:
+                response += self.socket.recv(bufsize)
+            except socket.error:
+                print("[WARN] No data received")
+                continue
 
             if VERBOSE:
-                print("[INFO] TCP attempt {}/{}: received {} of {}".format(i+1, TCP_MAX_ATTEMPTS, len(response), bufsize))
+                print("[INFO] Received {} of {}".format(len(response), bufsize))
 
             if len(response) >= bufsize:
                 if VERBOSE:
