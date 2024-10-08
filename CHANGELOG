@@ -8,3 +8,15 @@ v1.1 - 2024-09-16 - Jorge Fernandez
 v1.2 - 2024-09-20 - Jorge Fernandez
 - Added customisable wait time to receive TCP responses
 - Added multiple attempts to receive full response via TCP
+
+2024-10-08 - Jorge Fernandez
+- Added global exception wrapper to catch bugs whilst keeping Cloudwatcher running
+
+
+TO DO
+- Calculate start/stop times where a target will actually be observed (e.g. in the sky)
+- Identify any clashes between requested time critical observations
+- Add scheduling of survey fields
+- Check observing times in in start/stop columns are valid,
+    and allow input only time (no date) as it is given by date of observing night
+- Allow observing using sidereal time in start/stop columns, e.g. "sid hh:mm:ss"

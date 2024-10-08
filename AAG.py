@@ -9,6 +9,7 @@ E! - Rain frequency (2560=dry, <2560=wet, single drop = 2300)
 C! - LDR voltage (mags per squared arcsec) + Rain sensor temp ()
 D! - Device errors
 """
+import traceback
 import time
 import socket
 from datetime import datetime
@@ -444,5 +445,14 @@ def cloudwatcher():
 
 
 if __name__ == "__main__":
-    # main()
-    cloudwatcher()
+    while(1):
+        try:
+            cloudwatcher()
+        except Exception as e:
+            # Adding global exception wrapper
+            # to help catch bugs whilst keeping the Cloudwatcher running
+            traceback.print_exc()
+            print("[WARN] Cloudwatcher crashed! Reason: {}".format(e))
+            print("[INFO] Waiting for 10 seconds ...")
+            time.sleep(10)
+
