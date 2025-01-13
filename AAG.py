@@ -304,15 +304,52 @@ def get_pwm_percent(pwm):
     return 100.0 * pwm / 1023.0
 
 
-def get_sky_temp(amb_temp, sky_temp):
+def get_sky_temp(tamb, tsky):
     """
-    correct the sky temp for the ambient
+    Calculates corrected sky temperature in Celsius.
+
+    Parameters
+    ----------
+    tamb: Sensor (ambient) temperature in Celsius.
+    tsky: Uncorrected sky temperature in Celsius.
     """
     # Correction terms
-    k = np.array([33.0/100.0, 0.0/10.0, 4.0/100.0, 100.0/1000.0, 100.0/100.0])
-    temp_corr = k[0] * (amb_temp - k[1]) + k[2] * np.exp(k[3] * amb_temp) ** k[4] 
-    return sky_temp - temp_corr
+    # k = np.array([33.0/100.0, 0.0/10.0, 4.0/100.0, 100.0/1000.0, 100.0/100.0])
+    # temp_corr = k[0] * (amb_temp - k[1]) + k[2] * np.exp(k[3] * amb_temp) ** k[4] 
+    # return sky_temp - temp_corr
+    
+    #        K1  K2  K3  K4   K5   K6  K7
+    coeff = [33, 22,  4, 100, 100,  0,  0]
 
+    # Cold weather term
+    if np.abs( coeff[1]/10 - tamb) < 1:
+        tcold = np.sign(coeff[5]) * np.sign(tamb - coeff[1]/10) * np.abs(coeff[1]/10 - tamb)
+    else:
+        tcold = coeff[5]/10 * np.sign(tamb - coeff[1]/10)
+        tcold *= (np.log(np.abs((coeff[1]/10 - tamb))) / np.log(10) + coeff[6] / 100)
+
+    tcorr = coeff[0]/100 * (tamb-coeff[1]/10)
+    tcorr += (coeff[2]/100) * np.exp(tamb * coeff[3]/1000) ** (coeff[4]/100)
+    tcorr += tcold
+
+    return tsky - tcorr
+
+
+def get_ambient_temp(sensor_value):
+    """ Converts sensor reading (T command) into sensor (ambient) temperature in Celsius """
+    amb_pull_up_resistance = 9.9
+    amb_res_at_25 = 10.0
+    amb_beta = 3811.0
+    abs_zero = 273.15
+    
+    if sensor_value > 1022:
+        sensor_value = 1022
+    elif sensor_value < 1:
+        sensor_value = 1
+    r = amb_pull_up_resistance / ((1023/sensor_value) - 1)
+    r = np.log(r / amb_res_at_25)
+    amb_temp = 1 / (r / amb_beta + 1 / (abs_zero + 25)) - abs_zero
+    return amb_temp
 
 def get_rain_sensor_temp(sensor_value):
     """
@@ -411,9 +448,9 @@ def cloudwatcher():
             # Apply specific adjustments to quantities
             # NOTE: Rain frequency requires no corrections, the sensor value is the true rain frequency                       
             # -- Convert temperatures to celsius
-            sensor_values['ambient_temp'] /= 100.0
+            # sensor_values['ambient_temp'] /= 100.0
+            sensor_values['ambient_temp'] = get_ambient_temp(sensor_values['ambient_temp'])
             sensor_values['sky_temp_c'] /= 100.0
-            
             sensor_values['sky_temp_c'] = get_sky_temp(sensor_values['ambient_temp'], sensor_values['sky_temp_c'])
             sensor_values['ldr'] = get_light_sensor_mpsas(sensor_values['ldr'], sensor_values['ambient_temp'])
             sensor_values['rain_sens_temp'] = get_rain_sensor_temp(sensor_values['rain_sens_temp'])
